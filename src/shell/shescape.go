@@ -26,7 +26,7 @@ var (
 	}
 )
 
-// Escape a string for shell.
+// Escape escapes a string for shell.
 func Escape(s string) string {
 	if isSafe(s) {
 		return s
@@ -35,8 +35,7 @@ func Escape(s string) string {
 	buffer.WriteByte('\'')
 	for i := 0; i < len(s); i++ {
 		b := s[i]
-		t := types[b]
-		switch t {
+		switch types[b] {
 		case 0, 1:
 			buffer.WriteByte(b)
 		case 2:

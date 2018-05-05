@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/omakoto/zenlog-go/zenlog/util"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestShellSplit(t *testing.T) {
@@ -35,6 +36,6 @@ func TestShellSplit(t *testing.T) {
 	}
 	for _, v := range inputs {
 		actual := Split(v.source)
-		util.AssertStringSlicesEqual(t, "Source="+v.source, v.expected, actual)
+		assert.Equal(t, v.expected, actual, "Source="+v.source)
 	}
 }
