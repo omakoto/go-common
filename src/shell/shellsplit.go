@@ -1,11 +1,9 @@
+// Shell tokenizer for posix + bash extension ($'..' and $"..")
 package shell
 
 import (
 	"bytes"
 )
-
-// Shell tokenizer.
-// TODO Handle operators such as |.
 
 type Token struct {
 	Word  string

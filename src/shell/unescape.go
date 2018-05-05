@@ -1,3 +1,4 @@
+// Shell unescape for posix + bash extension ($'..' and $"..")
 package shell
 
 import "bytes"
@@ -5,7 +6,7 @@ import "bytes"
 func hasQuote(text string) bool {
 	for i := 0; i < len(text); i++ {
 		switch text[i] {
-		case '\'', '"':
+		case '\'', '"', '\\':
 			return true
 		}
 	}
@@ -21,6 +22,29 @@ func nextByte(text string, pos *int, nextByte *byte) bool {
 	return false
 }
 
+func eatHex(text string, pos *int, maxLen int) (uint64, bool) {
+	startPos := *pos
+	var ret uint64
+	for *pos < len(text) && maxLen > 0 {
+		b := text[*pos]
+		var v uint8
+		if '0' <= b && b <= '9' {
+			v = (b - '0')
+		} else if 'a' <= b && b <= 'f' {
+			v = (b - 'a' + 10)
+		} else if 'A' <= b && b <= 'F' {
+			v = (b - 'A' + 10)
+		} else {
+			break
+		}
+		ret *= 16
+		ret += uint64(v)
+		*pos++
+		maxLen--
+	}
+	return ret, *pos > startPos
+}
+
 func Unescape(text string) string {
 	if !hasQuote(text) {
 		return text
@@ -29,6 +53,12 @@ func Unescape(text string) string {
 	pos := 0
 	var b byte
 	for nextByte(text, &pos, &b) {
+		if b == '\\' {
+			if nextByte(text, &pos, &b) {
+				buffer.WriteByte(b)
+			}
+			continue
+		}
 		if b == '\'' {
 			for nextByte(text, &pos, &b) {
 				if b == '\'' {
@@ -97,19 +127,35 @@ func UnescapeCLike(text string, buffer *bytes.Buffer, pos int) int {
 					buffer.WriteByte('\t')
 				case 'v':
 					buffer.WriteByte('\v')
-				case 'c': // TODO -- Ctrl+?
-					if nextByte(text, &pos, &b) {
-						buffer.WriteByte(b - 'a')
+				case 'c':
+					if nextByte(text, &pos, &b); b != '\'' {
+						buffer.WriteByte(b & 0x1f)
+					} else {
+						buffer.Write([]byte("\\c"))
 					}
-				case 'x': // TODO -- hex 00-ff
-				case 'u': // TODO -- utf8 0000-ffff
-				case 'U': // TODO -- utf8 00000000-ffffffff
+				case 'x':
+					if v, ok := eatHex(text, &pos, 2); ok {
+						buffer.WriteByte(uint8(v))
+					} else {
+						buffer.Write([]byte("\\c"))
+					}
+				case 'u':
+					if v, ok := eatHex(text, &pos, 4); ok {
+						buffer.WriteRune(rune(v))
+					} else {
+						buffer.Write([]byte("\\u"))
+					}
+				case 'U':
+					if v, ok := eatHex(text, &pos, 8); ok {
+						buffer.WriteRune(rune(v))
+					} else {
+						buffer.Write([]byte("\\U"))
+					}
 				default: // unrecognized escape char.
 					buffer.WriteByte('\\')
 					buffer.WriteByte(b)
 				}
 			}
-
 			continue
 		}
 		buffer.WriteByte(b)
