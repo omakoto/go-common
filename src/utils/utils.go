@@ -1,12 +1,11 @@
 package utils
 
-var 	reRegexCleaner = NewLazyRegexp(`(?:\s+|\s*#[^\n]*\n\s*)`)
+var reRegexCleaner = NewLazyRegexp(`(?:\s+|\s*#[^\n]*\n\s*)`)
 
 // Remove whitespace and comments from a regex pattern.
 func CleanUpRegexp(pattern string) string {
 	return reRegexCleaner.Pattern().ReplaceAllLiteralString(pattern, "")
 }
-
 
 func FirstNonEmpty(vals ...string) string {
 	for _, v := range vals {
@@ -21,4 +20,3 @@ func FirstNonEmpty(vals ...string) string {
 func StringSlice(arr ...string) []string {
 	return arr
 }
-

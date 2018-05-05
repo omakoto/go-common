@@ -1,8 +1,8 @@
 package fileutils
 
 import (
-	"path/filepath"
 	"github.com/omakoto/go-common/src/common"
+	"path/filepath"
 )
 
 func MustGetRealPath(path string) string {

@@ -1,6 +1,7 @@
 package shell
 
 import (
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
@@ -16,8 +17,6 @@ func TestShescape(t *testing.T) {
 	}
 	for _, v := range inputs {
 		actual := Escape(v.source)
-		if v.expected != actual {
-			t.Errorf("Expected=%s, actual=%s", v.expected, actual)
-		}
+		assert.Equal(t, v.expected, actual)
 	}
 }

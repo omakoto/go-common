@@ -1,8 +1,8 @@
 package textio
 
 import (
-	"regexp"
 	"github.com/omakoto/go-common/src/utils"
+	"regexp"
 )
 
 type Sanitizer struct {

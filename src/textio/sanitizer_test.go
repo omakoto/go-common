@@ -1,6 +1,7 @@
 package textio
 
 import (
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
@@ -15,6 +16,6 @@ func TestSanitizer(t *testing.T) {
 	}
 	for _, v := range tests {
 		a := s.Sanitize([]byte(v.input))
-		AssertStringsEqual(t, v.input, v.expected, string(a))
+		assert.Equal(t, v.expected, string(a), "Input="+v.input)
 	}
 }
