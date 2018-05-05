@@ -2,6 +2,8 @@
 
 set -e
 
+cd "${0%/*}/.."
+
 NOT_FORMATTED=$(gofmt -s -d $(find . -type f -name '*.go'))
 
 if [[ -n "$NOT_FORMATTED" ]] ; then

@@ -36,3 +36,15 @@ func (b *ZshProxy) PrintUpdateCommandLineEvalStr(commandLine string, cursorPos i
 	fmt.Print("=")
 	fmt.Println(strconv.Itoa(cursorPos))
 }
+
+func (s *ZshProxy) Split(text string) []Token {
+	return SplitToTokens(text) // TODO Not sure if it's 100% compatible to bash.
+}
+
+func (s *ZshProxy) Escape(text string) string {
+	return Escape(text) // TODO Not sure if it's 100% compatible to bash.
+}
+
+func (s *ZshProxy) Unescape(text string) string {
+	return Unescape(text) // TODO Not sure if it's 100% compatible to bash.
+}

@@ -39,3 +39,15 @@ func (b *BashProxy) PrintUpdateCommandLineEvalStr(commandLine string, cursorPos 
 	fmt.Print("=")
 	fmt.Println(strconv.Itoa(cursorPos))
 }
+
+func (s *BashProxy) Split(text string) []Token {
+	return SplitToTokens(text)
+}
+
+func (s *BashProxy) Escape(text string) string {
+	return Escape(text)
+}
+
+func (s *BashProxy) Unescape(text string) string {
+	return Unescape(text)
+}
