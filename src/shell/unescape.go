@@ -162,3 +162,7 @@ func UnescapeCLike(text string, buffer *bytes.Buffer, pos int) int {
 	}
 	return pos
 }
+
+func UnescapeBytes(b []byte) []byte {
+	return []byte(Unescape(string(b)))
+}

@@ -57,3 +57,15 @@ func Checkf(err error, format string, args ...interface{}) {
 	}
 	Check(err, fmt.Sprintf(format, args...))
 }
+
+func OrFatalf(condition bool, format string, args ...interface{}) {
+	if !condition {
+		Fatalf(format, args...)
+	}
+}
+
+func OrWarnf(condition bool, format string, args ...interface{}) {
+	if !condition {
+		Warnf(format, args...)
+	}
+}
