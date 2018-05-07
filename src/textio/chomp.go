@@ -11,3 +11,14 @@ func Chomp(s []byte) []byte {
 	}
 	return s
 }
+
+func Chomped(s []byte) ([]byte, bool) {
+	if len(s) == 0 {
+		return s, false
+	}
+	last := len(s) - 1
+	if s[last] == '\n' {
+		return s[0:last], true
+	}
+	return s, false
+}
