@@ -10,7 +10,7 @@ import (
 var DebugEnabled = false
 
 func init() {
-	if getBinEnv("DEBUG") == "1" {
+	if getBinEnv("DEBUG") == "1" || os.Getenv("DEBUG") == "1" {
 		DebugEnabled = true
 	}
 }

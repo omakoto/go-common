@@ -7,13 +7,20 @@ import (
 	"runtime/debug"
 )
 
-var Quiet = false
+var (
+	Quiet = false
+
+	cachedBinName = ""
+)
 
 // MustGetBinName returns the filename of the currently running executable.
 func MustGetBinName() string {
-	me, err := os.Executable()
-	Check(err, "Executable failed")
-	return filepath.Base(me)
+	if cachedBinName == "" {
+		me, err := os.Executable()
+		Check(err, "os.Executable() failed")
+		cachedBinName = filepath.Base(me)
+	}
+	return cachedBinName
 }
 
 func maybePrintStackTrack() {
