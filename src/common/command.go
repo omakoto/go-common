@@ -22,6 +22,14 @@ func maybePrintStackTrack() {
 	}
 }
 
+func maybeLf(msg string) string {
+	l := len(msg)
+	if l > 0 && msg[l-1] == '\n' {
+		return ""
+	}
+	return "\n"
+}
+
 func Fatal(message string) {
 	if !Quiet {
 		Warn(message)
@@ -36,7 +44,7 @@ func Fatalf(format string, args ...interface{}) {
 
 func Warn(message string) {
 	if !Quiet {
-		fmt.Fprintf(os.Stderr, "%s: %s\n", MustGetBinName(), message)
+		fmt.Fprint(os.Stderr, MustGetBinName(), ": ", message, maybeLf(message))
 	}
 }
 
@@ -48,7 +56,7 @@ func Check(err error, message string) {
 	if err == nil {
 		return
 	}
-	Fatal(fmt.Sprintf("%s: %s\n", message, err))
+	Fatal(fmt.Sprintf("%s: %s", message, err))
 }
 
 func Checkf(err error, format string, args ...interface{}) {

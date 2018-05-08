@@ -2,12 +2,10 @@ package textio
 
 var (
 	emptySlice []byte
-	lfSlice []byte
 )
 
 func init() {
 	emptySlice = make([]byte, 0)
-	lfSlice = []byte("\n")
 }
 
 // Chomp returns an original slice with the last LF cut, if any.
@@ -23,7 +21,7 @@ func Chomped(s []byte) ([]byte, []byte) {
 	}
 	last := len(s) - 1
 	if s[last] == '\n' {
-		return s[0:last], lfSlice
+		return s[0:last], s[last : last+1]
 	}
 	return s, emptySlice
 }
