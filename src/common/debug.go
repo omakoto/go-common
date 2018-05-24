@@ -23,7 +23,7 @@ func Debug(message string) {
 	if !DebugEnabled {
 		return
 	}
-	fmt.Fprint(os.Stdout, message, maybeLf(message))
+	fmt.Fprint(os.Stderr, message, maybeLf(message))
 }
 
 func Debugf(format string, args ...interface{}) {
