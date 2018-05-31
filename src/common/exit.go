@@ -1,6 +1,16 @@
 package common
 
-import "os"
+import (
+	"os"
+	"sync"
+)
+
+type ExitFunc func()
+
+var (
+	atExitsSem = &sync.Mutex{}
+	atExits []ExitFunc
+)
 
 type exitStatus struct {
 	code int
@@ -22,10 +32,40 @@ func Exit(success bool) {
 	if success {
 		status = 0
 	}
+	ExitWithStatus(status)
+}
+
+// ExitWithStatus should be used within RunAndExit to cleanly finishes the process with a given status code.
+func ExitWithStatus(status int) {
 	panic(exitStatus{status})
 }
 
+// AtExit registers an at-exit hook function.
+func AtExit(f ExitFunc) {
+	atExitsSem.Lock()
+	atExits = append(atExits, f)
+	atExitsSem.Unlock()
+}
+
+func runAtExits() {
+	for {
+		atExitsSem.Lock()
+		if len(atExits) == 0 {
+			return
+		}
+		last := len(atExits)-1
+		lastFunc := atExits[last]
+		atExits[last] = nil
+		atExits = atExits[0:last]
+
+		atExitsSem.Unlock()
+
+		lastFunc()
+	}
+}
+
 func runWithRescue(f func() int) (result int) {
+	defer runAtExits()
 	defer func() {
 		if r := recover(); r != nil {
 			if e, ok := r.(exitStatus); ok {
@@ -43,3 +83,5 @@ func runWithRescue(f func() int) (result int) {
 func RunAndExit(f func() int) {
 	os.Exit(runWithRescue(f))
 }
+
+
