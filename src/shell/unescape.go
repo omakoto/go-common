@@ -68,7 +68,10 @@ func Unescape(text string) string {
 			}
 			continue
 		}
-		if b == '"' {
+		if (b == '$' && (pos < len(text)) && text[pos] == '"') || (b == '"') {
+			if b == '$' {
+				pos++
+			}
 			for nextByte(text, &pos, &b) {
 				if b == '"' {
 					break
