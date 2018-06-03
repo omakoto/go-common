@@ -39,12 +39,11 @@ func ReadFile(filename string, f ReadFunc) error {
 func ReadFiles(files []string, f ReadFunc) error {
 	if len(files) == 0 {
 		return ReadReader("-", os.Stdin, f)
-	} else {
-		for _, file := range files {
-			err := ReadFile(file, f)
-			if err != nil {
-				return err
-			}
+	}
+	for _, file := range files {
+		err := ReadFile(file, f)
+		if err != nil {
+			return err
 		}
 	}
 	return nil

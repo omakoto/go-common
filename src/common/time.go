@@ -32,7 +32,7 @@ func (clock) Now() time.Time {
 	return time.Unix(i, 0)
 }
 
-// Create a new (real) Clock.
+// NewClock creates a new (real) Clock.
 func NewClock() Clock {
 	return clock{}
 }

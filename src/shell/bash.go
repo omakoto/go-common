@@ -19,18 +19,18 @@ func GetBashProxy() Proxy {
 }
 
 // GetCommandLine return the current command line and the cursor position from the READLINE_* environmental variables.
-func (b *BashProxy) GetCommandLine() (string, int) {
-	s := os.Getenv(readlineLine)
+func (s *BashProxy) GetCommandLine() (string, int) {
+	line := os.Getenv(readlineLine)
 	l, err := strconv.Atoi(os.Getenv(readlinePoint))
 	if err != nil || l < 0 {
-		l = len(s)
+		l = len(line)
 	}
-	return s, l
+	return line, l
 }
 
-// UpdateCommandLine prints a string that can be evaled by bash to update the READLINE_* environmental variables
+// PrintUpdateCommandLineEvalStr prints a string that can be evaled by bash to update the READLINE_* environmental variables
 // to update the current command line.
-func (b *BashProxy) PrintUpdateCommandLineEvalStr(commandLine string, cursorPos int) {
+func (s *BashProxy) PrintUpdateCommandLineEvalStr(commandLine string, cursorPos int) {
 	fmt.Print(readlineLine)
 	fmt.Print("=")
 	fmt.Println(Escape(commandLine))

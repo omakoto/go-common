@@ -1,6 +1,7 @@
 package shell
 
 import (
+	"github.com/omakoto/go-common/src/common"
 	"os"
 	"path/filepath"
 )
@@ -45,6 +46,12 @@ func GetSupportedProxy() Proxy {
 		return GetZshProxy()
 	}
 	return nil
+}
+
+func MustGetSupportedProxy() Proxy {
+	sh := GetSupportedProxy()
+	common.OrFatalf(sh != nil, "Unsupported shell.\n")
+	return sh
 }
 
 func GetProxy() Proxy {

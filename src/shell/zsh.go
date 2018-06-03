@@ -18,16 +18,16 @@ func GetZshProxy() Proxy {
 	return &ZshProxy{}
 }
 
-func (b *ZshProxy) GetCommandLine() (string, int) {
-	s := os.Getenv(zleBuffer)
+func (s *ZshProxy) GetCommandLine() (string, int) {
+	line := os.Getenv(zleBuffer)
 	l, err := strconv.Atoi(os.Getenv(zleCursor))
 	if err != nil || l < 0 {
-		l = len(s)
+		l = len(line)
 	}
-	return s, l
+	return line, l
 }
 
-func (b *ZshProxy) PrintUpdateCommandLineEvalStr(commandLine string, cursorPos int) {
+func (s *ZshProxy) PrintUpdateCommandLineEvalStr(commandLine string, cursorPos int) {
 	fmt.Print(zleBuffer)
 	fmt.Print("=")
 	fmt.Println(Escape(commandLine))
