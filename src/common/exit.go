@@ -9,7 +9,7 @@ type ExitFunc func()
 
 var (
 	atExitsSem = &sync.Mutex{}
-	atExits []ExitFunc
+	atExits    []ExitFunc
 )
 
 type exitStatus struct {
@@ -51,9 +51,10 @@ func runAtExits() {
 	for {
 		atExitsSem.Lock()
 		if len(atExits) == 0 {
+			atExitsSem.Unlock()
 			return
 		}
-		last := len(atExits)-1
+		last := len(atExits) - 1
 		lastFunc := atExits[last]
 		atExits[last] = nil
 		atExits = atExits[0:last]
@@ -83,5 +84,3 @@ func runWithRescue(f func() int) (result int) {
 func RunAndExit(f func() int) {
 	os.Exit(runWithRescue(f))
 }
-
-
