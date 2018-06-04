@@ -1,6 +1,16 @@
 package utils
 
-import "time"
+import (
+	"github.com/omakoto/go-common/src/common"
+	"io/ioutil"
+	"strconv"
+	"strings"
+	"time"
+)
+
+var (
+	timeOverrideFile = common.GetBinEnv("TIME_INJECTION_FILE")
+)
 
 // Clock is a mockable clock interface.
 type Clock interface {
@@ -12,7 +22,15 @@ type clock struct {
 
 // Return the current time.
 func (clock) Now() time.Time {
-	return time.Now()
+	if timeOverrideFile == "" {
+		return time.Now()
+	}
+	bytes, err := ioutil.ReadFile(timeOverrideFile)
+	common.Check(err, "ReadFile failed")
+	i, err := strconv.ParseInt(strings.TrimRight(string(bytes), "\n"), 10, 64)
+	common.Check(err, "ParseInt failed")
+
+	return time.Unix(i, 0)
 }
 
 // Create a new (real) Clock.

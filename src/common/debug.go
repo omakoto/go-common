@@ -10,12 +10,12 @@ import (
 var DebugEnabled = false
 
 func init() {
-	if getBinEnv("DEBUG") == "1" || os.Getenv("DEBUG") == "1" {
+	if GetBinEnv("DEBUG") == "1" || os.Getenv("DEBUG") == "1" {
 		DebugEnabled = true
 	}
 }
 
-func getBinEnv(suffix string) string {
+func GetBinEnv(suffix string) string {
 	return os.Getenv(fmt.Sprintf("%s_%s", strings.Replace(strings.ToUpper(MustGetBinName()), "-", "_", -1), suffix))
 }
 

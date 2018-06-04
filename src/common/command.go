@@ -24,7 +24,7 @@ func MustGetBinName() string {
 }
 
 func maybePrintStackTrack() {
-	if getBinEnv("PRINT_STACK") == "1" {
+	if GetBinEnv("PRINT_STACK") == "1" {
 		debug.PrintStack()
 	}
 }
