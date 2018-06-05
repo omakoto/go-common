@@ -2,16 +2,26 @@ package common
 
 import (
 	"fmt"
+	"github.com/davecgh/go-spew/spew"
 	"os"
 	"path/filepath"
 	"runtime/debug"
+	"strings"
 )
 
 var (
 	Quiet = false
 
 	cachedBinName = ""
+
+	DebugEnabled = false
 )
+
+func init() {
+	if GetBinEnv("DEBUG") == "1" || os.Getenv("DEBUG") == "1" {
+		DebugEnabled = true
+	}
+}
 
 // MustGetBinName returns the filename of the currently running executable.
 func MustGetBinName() string {
@@ -21,6 +31,18 @@ func MustGetBinName() string {
 		cachedBinName = filepath.Base(me)
 	}
 	return cachedBinName
+}
+
+func GetBinEnv(suffix string) string {
+	return os.Getenv(fmt.Sprintf("%s_%s", strings.Replace(strings.ToUpper(MustGetBinName()), "-", "_", -1), suffix))
+}
+
+func MustGetenv(name string) string {
+	ret := os.Getenv(name)
+	if ret == "" {
+		Fatal(name + " not set")
+	}
+	return ret
 }
 
 func maybePrintStackTrack() {
@@ -83,4 +105,25 @@ func OrWarnf(condition bool, format string, args ...interface{}) {
 	if !condition {
 		Warnf(format, args...)
 	}
+}
+
+func Debug(message string) {
+	if !DebugEnabled {
+		return
+	}
+	fmt.Fprint(os.Stderr, message, maybeLf(message))
+}
+
+func Debugf(format string, args ...interface{}) {
+	if !DebugEnabled {
+		return
+	}
+	Debug(fmt.Sprintf(format, args...))
+}
+
+func Dump(prefix string, object interface{}) {
+	if !DebugEnabled {
+		return
+	}
+	Debugf("%s%s", prefix, spew.Sdump(object))
 }

@@ -47,7 +47,9 @@ func AtExit(f ExitFunc) {
 	atExitsSem.Unlock()
 }
 
-func runAtExits() {
+// RunAtExits runs (and removes) all registered AtExit functions. RunAndExit will call it automatically,
+// so no need to call it when you use RunAndExit.
+func RunAtExits() {
 	for {
 		atExitsSem.Lock()
 		if len(atExits) == 0 {
@@ -66,7 +68,7 @@ func runAtExits() {
 }
 
 func runWithRescue(f func() int) (result int) {
-	defer runAtExits()
+	defer RunAtExits()
 	defer func() {
 		if r := recover(); r != nil {
 			if e, ok := r.(exitStatus); ok {
