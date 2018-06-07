@@ -1,6 +1,13 @@
 package utils
 
-import "sync"
+import (
+	"bytes"
+	"github.com/omakoto/go-common/src/common"
+	"runtime"
+	"strconv"
+	"strings"
+	"sync"
+)
 
 var reRegexCleaner = NewLazyRegexp(`(?:\s+|\s*#[^\n]*\n\s*)`)
 
@@ -36,4 +43,44 @@ func GoMulti(n int, f func()) func() {
 	return func() {
 		wg.Wait()
 	}
+}
+
+func SourceLineNo() int {
+	_, _, line, ok := runtime.Caller(1)
+
+	if ok {
+		return line
+	}
+	return 0
+}
+
+func SourceFileName() string {
+	_, source, _, ok := runtime.Caller(1)
+
+	if ok {
+		return source
+	}
+	return ""
+}
+
+func MustParseInt(val string, base int) int {
+	v, err := strconv.Atoi(val)
+	common.Checkf(err, "invalid string \"%s\"", val)
+	return v
+}
+
+func IndexByteOrLen(s string, c byte) int {
+	ret := strings.IndexByte(s, c)
+	if ret >= 0 {
+		return ret
+	}
+	return len(s)
+}
+
+func BytesIndexByteOrLen(s []byte, c byte) int {
+	ret := bytes.IndexByte(s, c)
+	if ret >= 0 {
+		return ret
+	}
+	return len(s)
 }
