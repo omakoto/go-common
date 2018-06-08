@@ -23,12 +23,17 @@ func init() {
 	}
 }
 
+// MustGetExecutable returns the filename of the self binary.
+func MustGetExecutable() string {
+	me, err := os.Executable()
+	Check(err, "os.Executable() failed")
+	return me
+}
+
 // MustGetBinName returns the filename of the currently running executable.
 func MustGetBinName() string {
 	if cachedBinName == "" {
-		me, err := os.Executable()
-		Check(err, "os.Executable() failed")
-		cachedBinName = filepath.Base(me)
+		cachedBinName = filepath.Base(MustGetExecutable())
 	}
 	return cachedBinName
 }
