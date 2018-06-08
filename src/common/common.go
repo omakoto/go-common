@@ -100,6 +100,20 @@ func Checkf(err error, format string, args ...interface{}) {
 	Check(err, fmt.Sprintf(format, args...))
 }
 
+func CheckPanic(err error, message string) {
+	if err == nil {
+		return
+	}
+	panic(fmt.Sprintf("%s: %s", message, err))
+}
+
+func CheckPanicf(err error, format string, args ...interface{}) {
+	if err == nil {
+		return
+	}
+	CheckPanic(err, fmt.Sprintf(format, args...))
+}
+
 func OrFatalf(condition bool, format string, args ...interface{}) {
 	if !condition {
 		Fatalf(format, args...)
