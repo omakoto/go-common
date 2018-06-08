@@ -20,3 +20,25 @@ func BytesIndexByteOrLen(s []byte, c byte) int {
 	}
 	return len(s)
 }
+
+func StringByteAt(s string, index int) byte {
+	l := len(s)
+	if index < 0 {
+		index = l + index
+	}
+	if index >= l {
+		return 0
+	}
+	return s[index]
+}
+
+func BytesByteAt(s string, index int) byte {
+	l := len(s)
+	if index < 0 {
+		index = l + index
+	}
+	if index >= l {
+		return 0
+	}
+	return s[index]
+}
