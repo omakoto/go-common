@@ -86,6 +86,13 @@ func Warnf(format string, args ...interface{}) {
 	Warn(fmt.Sprintf(format, args))
 }
 
+func Checke(err error) {
+	if err == nil {
+		return
+	}
+	Fatal(err.Error())
+}
+
 func Check(err error, message string) {
 	if err == nil {
 		return
@@ -98,6 +105,13 @@ func Checkf(err error, format string, args ...interface{}) {
 		return
 	}
 	Check(err, fmt.Sprintf(format, args...))
+}
+
+func CheckPanice(err error) {
+	if err == nil {
+		return
+	}
+	panic(err.Error())
 }
 
 func CheckPanic(err error, message string) {
