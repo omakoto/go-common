@@ -128,6 +128,10 @@ func CheckPanicf(err error, format string, args ...interface{}) {
 	CheckPanic(err, fmt.Sprintf(format, args...))
 }
 
+func Panicf(format string, args ...interface{}) {
+	panic(fmt.Sprintf(format, args...))
+}
+
 func OrFatalf(condition bool, format string, args ...interface{}) {
 	if !condition {
 		Fatalf(format, args...)
