@@ -73,7 +73,7 @@ func Fatal(message string) {
 }
 
 func Fatalf(format string, args ...interface{}) {
-	Fatal(fmt.Sprintf(format, args))
+	Fatal(fmt.Sprintf(format, args...))
 }
 
 func Warn(message string) {
@@ -83,7 +83,7 @@ func Warn(message string) {
 }
 
 func Warnf(format string, args ...interface{}) {
-	Warn(fmt.Sprintf(format, args))
+	Warn(fmt.Sprintf(format, args...))
 }
 
 func Checke(err error) {
@@ -141,6 +141,12 @@ func OrFatalf(condition bool, format string, args ...interface{}) {
 func OrWarnf(condition bool, format string, args ...interface{}) {
 	if !condition {
 		Warnf(format, args...)
+	}
+}
+
+func OrPanicf(condition bool, format string, args ...interface{}) {
+	if !condition {
+		Panicf(format, args...)
 	}
 }
 
