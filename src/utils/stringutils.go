@@ -42,3 +42,17 @@ func BytesByteAt(s string, index int) byte {
 	}
 	return s[index]
 }
+
+func FirstNonEmpty(vals ...string) string {
+	for _, v := range vals {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+// StringSlice is a convenient way to build a string slice.
+func StringSlice(arr ...string) []string {
+	return arr
+}
