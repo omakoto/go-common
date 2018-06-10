@@ -26,7 +26,7 @@ func StringByteAt(s string, index int) byte {
 	if index < 0 {
 		index = l + index
 	}
-	if index >= l {
+	if index < 0 || index >= l {
 		return 0
 	}
 	return s[index]
@@ -37,7 +37,7 @@ func BytesByteAt(s string, index int) byte {
 	if index < 0 {
 		index = l + index
 	}
-	if index >= l {
+	if index < 0 || index >= l {
 		return 0
 	}
 	return s[index]
