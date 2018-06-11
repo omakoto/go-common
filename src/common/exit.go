@@ -86,3 +86,12 @@ func runWithRescue(f func() int) (result int) {
 func RunAndExit(f func() int) {
 	os.Exit(runWithRescue(f))
 }
+
+// RunAndExitIfFailure executes a given function. Within the function, util.Exit* functions can be used to finish the process cleanly.
+// When f returns 0, then this fucntion will *not* call exit(1).
+func RunAndExitIfFailure(f func() int) {
+	status := runWithRescue(f)
+	if status != 0 {
+		os.Exit(status)
+	}
+}
