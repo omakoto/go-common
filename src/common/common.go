@@ -13,6 +13,7 @@ var (
 	Quiet = false
 
 	cachedBinName = ""
+	cachedHome    = ""
 
 	DebugEnabled = false
 )
@@ -48,6 +49,14 @@ func MustGetenv(name string) string {
 		Fatal(name + " not set")
 	}
 	return ret
+}
+
+// MustGetHome returns the home directory path.
+func MustGetHome() string {
+	if cachedHome == "" {
+		cachedHome = MustGetenv("HOME")
+	}
+	return cachedHome
 }
 
 func maybePrintStackTrack() {
