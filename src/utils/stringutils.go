@@ -56,3 +56,19 @@ func FirstNonEmpty(vals ...string) string {
 func StringSlice(arr ...string) []string {
 	return arr
 }
+
+func StringsToBytes(s []string) [][]byte {
+	ret := make([][]byte, 0)
+	for _, v := range s {
+		ret = append(ret, []byte(v))
+	}
+	return ret
+}
+
+func BytesToStrings(b [][]byte) []string {
+	ret := make([]string, 0)
+	for _, v := range b {
+		ret = append(ret, string(v))
+	}
+	return ret
+}
