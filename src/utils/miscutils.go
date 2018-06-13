@@ -25,3 +25,9 @@ func GoMulti(n int, f func()) func() {
 		wg.Wait()
 	}
 }
+
+func DoAndEnsure(fun func(), ensure func()) {
+	defer ensure()
+
+	fun()
+}
