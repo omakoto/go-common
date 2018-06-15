@@ -1,8 +1,8 @@
 package utils
 
 import (
-	"strings"
 	"github.com/omakoto/go-common/src/common"
+	"strings"
 )
 
 func HomeExpanded(path string) string {
