@@ -46,6 +46,21 @@ func Escape(s string) string {
 	return buffer.String()
 }
 
+// Escape escapes a string with backslashes.
+func EscapeNoQuotes(s string) string {
+	if isSafe(s) {
+		return s
+	}
+	buffer := bytes.NewBuffer(make([]byte, 0, len(s)*2))
+	for _, r := range(s) {
+		if r < 128 && types[r] != 0 {
+			buffer.WriteByte('\\')
+		}
+		buffer.WriteRune(r)
+	}
+	return buffer.String()
+}
+
 func isSafe(s string) bool {
 	for i := 0; i < len(s); i++ {
 		if types[s[i]] > 0 {
@@ -74,6 +89,11 @@ func EscapeBytes(s []byte) []byte {
 	}
 	buffer.WriteByte('\'')
 	return buffer.Bytes()
+}
+
+// Escape escapes a byte array with backslashes.
+func EscapeBytesNoQuotes(s []byte) []byte {
+	return []byte(EscapeNoQuotes(string(s)))
 }
 
 func isSafeBytes(s []byte) bool {

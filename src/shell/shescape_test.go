@@ -20,3 +20,19 @@ func TestShescape(t *testing.T) {
 		assert.Equal(t, v.expected, actual)
 	}
 }
+
+func TestShescapeNoQuotes(t *testing.T) {
+	inputs := []struct {
+		expected string
+		source   string
+	}{
+		{``, ""},
+		{`abc`, "abc"},
+		{`abc\ `, "abc "},
+		{`abc\ def\ \"\ \'\ xyz\ \'あいう\ `, `abc def " ' xyz 'あいう `},
+	}
+	for _, v := range inputs {
+		actual := EscapeNoQuotes(v.source)
+		assert.Equal(t, v.expected, actual)
+	}
+}
