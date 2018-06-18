@@ -52,7 +52,7 @@ func EscapeNoQuotes(s string) string {
 		return s
 	}
 	buffer := bytes.NewBuffer(make([]byte, 0, len(s)*2))
-	for _, r := range(s) {
+	for _, r := range s {
 		if r < 128 && types[r] != 0 {
 			buffer.WriteByte('\\')
 		}
