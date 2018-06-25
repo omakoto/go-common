@@ -42,6 +42,8 @@ func TestUnescape(t *testing.T) {
 		{`$'\377'`, "\xff"},
 		{`$'\3770'`, "\xff0"},
 
+		{`$'\377a'`, "\xffa"},
+
 		{`$""`, ``},
 		{`$"aaa bbb ccc"`, `aaa bbb ccc`},
 	}
