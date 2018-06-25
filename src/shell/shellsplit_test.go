@@ -7,6 +7,9 @@ import (
 )
 
 func ar(vals ...string) []string {
+	if vals == nil {
+		return make([]string, 0)
+	}
 	return vals
 }
 
