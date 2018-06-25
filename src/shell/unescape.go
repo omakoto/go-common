@@ -45,7 +45,7 @@ func eatHex(text string, pos *int, maxLen int) (uint64, bool) {
 	return ret, *pos > startPos
 }
 
-func eatOctal(text string, pos *int, maxLen int) (uint64, bool) {
+func eatOct(text string, pos *int, maxLen int) (uint64, bool) {
 	startPos := *pos
 	var ret uint64
 	for *pos < len(text) && maxLen > 0 {
@@ -159,7 +159,7 @@ func UnescapeCLike(text string, buffer *bytes.Buffer, pos int) int {
 					if v, ok := eatHex(text, &pos, 2); ok {
 						buffer.WriteByte(uint8(v))
 					} else {
-						buffer.Write([]byte("\\c"))
+						buffer.Write([]byte("\\x"))
 					}
 				case 'u':
 					if v, ok := eatHex(text, &pos, 4); ok {
@@ -167,13 +167,17 @@ func UnescapeCLike(text string, buffer *bytes.Buffer, pos int) int {
 					} else {
 						buffer.Write([]byte("\\u"))
 					}
-				//case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
-				//	if v, ok := eatOctal(text, &pos, 3); ok {
-				//		buffer.WriteByte(uint8(v))
-				//	} else {
-				//		buffer.WriteByte('\\')
-				//		buffer.WriteByte(b)
-				//	}
+				case 'U':
+					if v, ok := eatHex(text, &pos, 8); ok {
+						buffer.WriteRune(rune(v))
+					} else {
+						buffer.Write([]byte("\\U"))
+					}
+				case '0', '1', '2', '3', '4', '5', '6', '7':
+					pos--
+					// We know the first character is in 0..7, so no need to check "ok".
+					v, _ := eatOct(text, &pos, 3)
+					buffer.WriteByte(uint8(v))
 				default: // unrecognized escape char.
 					buffer.WriteByte('\\')
 					buffer.WriteByte(b)

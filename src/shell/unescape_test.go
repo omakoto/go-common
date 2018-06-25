@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestDecodeSingleQuote(t *testing.T) {
+func TestUnescape(t *testing.T) {
 	inputs := []struct {
 		source   string
 		expected string
@@ -32,6 +32,15 @@ func TestDecodeSingleQuote(t *testing.T) {
 		{`$'\U1\Uz1\U7e\U56fd\U1F466X'`, "\x01\\Uz1\x7e\u56fd\U0001F466X"},
 		{`$'\U0001F466X'`, "\U0001F466X"},
 		{`$'\U0001F466f'`, "\U0001F466f"},
+
+		{`$'\x\u\U\c'`, `\x\u\U\c`},
+		{`$'\x-\u-\U-'`, `\x-\u-\U-`},
+
+		{`$'\0a'`, "\x00a"},
+		{`$'\0010'`, "\x010"},
+		{`$'\1000'`, "@0"},
+		{`$'\377'`, "\xff"},
+		{`$'\3770'`, "\xff0"},
 
 		{`$""`, ``},
 		{`$"aaa bbb ccc"`, `aaa bbb ccc`},
