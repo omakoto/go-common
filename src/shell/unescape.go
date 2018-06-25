@@ -45,6 +45,25 @@ func eatHex(text string, pos *int, maxLen int) (uint64, bool) {
 	return ret, *pos > startPos
 }
 
+func eatOctal(text string, pos *int, maxLen int) (uint64, bool) {
+	startPos := *pos
+	var ret uint64
+	for *pos < len(text) && maxLen > 0 {
+		b := text[*pos]
+		var v uint8
+		if '0' <= b && b <= '7' {
+			v = (b - '0')
+		} else {
+			break
+		}
+		ret *= 8
+		ret += uint64(v)
+		*pos++
+		maxLen--
+	}
+	return ret, *pos > startPos
+}
+
 func Unescape(text string) string {
 	if !hasQuote(text) {
 		return text
@@ -148,12 +167,13 @@ func UnescapeCLike(text string, buffer *bytes.Buffer, pos int) int {
 					} else {
 						buffer.Write([]byte("\\u"))
 					}
-				case 'U':
-					if v, ok := eatHex(text, &pos, 8); ok {
-						buffer.WriteRune(rune(v))
-					} else {
-						buffer.Write([]byte("\\U"))
-					}
+				//case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+				//	if v, ok := eatOctal(text, &pos, 3); ok {
+				//		buffer.WriteByte(uint8(v))
+				//	} else {
+				//		buffer.WriteByte('\\')
+				//		buffer.WriteByte(b)
+				//	}
 				default: // unrecognized escape char.
 					buffer.WriteByte('\\')
 					buffer.WriteByte(b)

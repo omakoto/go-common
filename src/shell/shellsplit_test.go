@@ -3,36 +3,39 @@ package shell
 import (
 	"testing"
 
-	"github.com/omakoto/zenlog-go/zenlog/util"
 	"github.com/stretchr/testify/assert"
 )
+
+func ar(vals ...string) []string {
+	return vals
+}
 
 func TestShellSplit(t *testing.T) {
 	inputs := []struct {
 		source   string
 		expected []string
 	}{
-		{"", util.Ar()},
-		{"a", util.Ar("a")},
-		{"aaa", util.Ar("aaa")},
-		{"aaa b  ccc", util.Ar("aaa", "b", "ccc")},
-		{"aaa 'b  b'  ccc", util.Ar("aaa", "'b  b'", "ccc")},
-		{`aaa 'b  b'\''  d'  ccc`, util.Ar("aaa", `'b  b'\''  d'`, "ccc")},
-		{"`ab\"`  ccc", util.Ar("`ab\"`", "ccc")},
-		{`a\ \'\ \"`, util.Ar(`a\ \'\ \"`)},
-		{`$HOME/abc`, util.Ar(`$HOME/abc`)},
-		{`${HOME}/abc`, util.Ar(`${HOME}/abc`)},
-		{`  $(cat  ok  "$(next   "de  f")")/abc  xyz`, util.Ar(`$(cat  ok  "$(next   "de  f")")/abc`, "xyz")},
-		{`$ \`, util.Ar(`$`, `\`)},
-		{`$`, util.Ar(`$`)},
-		{`$'xyz' abc`, util.Ar(`$'xyz'`, `abc`)},
-		{`$"xyz" abc`, util.Ar(`$"xyz"`, `abc`)},
-		{`"\`, util.Ar(`"\`)},
-		{`'a x ;' b`, util.Ar(`'a x ;'`, `b`)},
-		{`cat|&grep>&ab#def  # commenct;abc`, util.Ar(`cat`, `|&`, `grep`, `>&`, `ab#def`, `# commenct;abc`)},
-		{`echo $'a\xffb' # broken utf8`, util.Ar(`echo`, `$'a\xffb'`, `# broken utf8`)},
+		{"", ar()},
+		{"a", ar("a")},
+		{"aaa", ar("aaa")},
+		{"aaa b  ccc", ar("aaa", "b", "ccc")},
+		{"aaa 'b  b'  ccc", ar("aaa", "'b  b'", "ccc")},
+		{`aaa 'b  b'\''  d'  ccc`, ar("aaa", `'b  b'\''  d'`, "ccc")},
+		{"`ab\"`  ccc", ar("`ab\"`", "ccc")},
+		{`a\ \'\ \"`, ar(`a\ \'\ \"`)},
+		{`$HOME/abc`, ar(`$HOME/abc`)},
+		{`${HOME}/abc`, ar(`${HOME}/abc`)},
+		{`  $(cat  ok  "$(next   "de  f")")/abc  xyz`, ar(`$(cat  ok  "$(next   "de  f")")/abc`, "xyz")},
+		{`$ \`, ar(`$`, `\`)},
+		{`$`, ar(`$`)},
+		{`$'xyz' abc`, ar(`$'xyz'`, `abc`)},
+		{`$"xyz" abc`, ar(`$"xyz"`, `abc`)},
+		{`"\`, ar(`"\`)},
+		{`'a x ;' b`, ar(`'a x ;'`, `b`)},
+		{`cat|&grep>&ab#def  # commenct;abc`, ar(`cat`, `|&`, `grep`, `>&`, `ab#def`, `# commenct;abc`)},
+		{`echo $'a\xffb' # broken utf8`, ar(`echo`, `$'a\xffb'`, `# broken utf8`)},
 		{`cat fi\ le.txt|grep -V ^# >'out$$.txt' # Find non-comment lines.`,
-			util.Ar(`cat`, `fi\ le.txt`, `|`, `grep`, `-V`, `^#`, `>`, `'out$$.txt'`, `# Find non-comment lines.`)},
+			ar(`cat`, `fi\ le.txt`, `|`, `grep`, `-V`, `^#`, `>`, `'out$$.txt'`, `# Find non-comment lines.`)},
 	}
 	for _, v := range inputs {
 		actual := Split(v.source)
