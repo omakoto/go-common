@@ -1,5 +1,6 @@
-// Shell unescape for posix + bash extension ($'..' and $"..")
 package shell
+
+// Shell unescape for posix + bash extension ($'..' and $"..")
 
 import "bytes"
 

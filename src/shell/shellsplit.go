@@ -1,5 +1,6 @@
-// Shell tokenizer for posix + bash extension ($'..' and $"..")
 package shell
+
+// Shell tokenizer for posix + bash extension ($'..' and $"..")
 
 import (
 	"bytes"
