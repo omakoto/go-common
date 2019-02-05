@@ -13,10 +13,10 @@ type TextBlock struct {
 var lf = []byte("\n")
 
 func copyLines(lines ...[]byte) [][]byte {
-	ret := make([][]byte, len(lines), len(lines))
+	ret := make([][]byte, len(lines))
 
 	for i, v := range lines {
-		ret[i] = make([]byte, len(v), len(v))
+		ret[i] = make([]byte, len(v))
 		copy(ret[i], v)
 	}
 
@@ -36,6 +36,14 @@ func (b *TextBlock) Lines() [][]byte {
 	return copyLines(b.lines...)
 }
 
+func (b *TextBlock) LineStrings() []string {
+	ret := make([]string, len(b.lines))
+	for i, v := range b.lines {
+		ret[i] = string(v)
+	}
+	return ret
+}
+
 func (b *TextBlock) Bytes() []byte {
 	return bytes.Join(b.lines, lf)
 }
@@ -53,16 +61,16 @@ func (b *TextBlock) Slice(start, end int) *TextBlock {
 
 func (b *TextBlock) copyRegion(startX, startY, endX, endY int, doCut bool) *TextBlock {
 	if startX < 0 {
-		common.Panicf("Invalid startX: %i", startX)
+		common.Panicf("Invalid startX: %d", startX)
 	}
 	if startY < 0 {
-		common.Panicf("Invalid startY: %i", startY)
+		common.Panicf("Invalid startY: %d", startY)
 	}
 	if endX < startX {
-		common.Panicf("endX %i must not be smaller than startX %i", endX, startX)
+		common.Panicf("endX %d must not be smaller than startX %d", endX, startX)
 	}
 	if endY < startY {
-		common.Panicf("endY %i must not be smaller than startY %i", endY, startY)
+		common.Panicf("endY %d must not be smaller than startY %d", endY, startY)
 	}
 	cut := TextBlock{lines: make([][]byte, endY-startY+1)}
 
@@ -76,11 +84,11 @@ func (b *TextBlock) copyRegion(startX, startY, endX, endY int, doCut bool) *Text
 			continue
 		}
 		realEndX := endX
-		if realEndX > lineLen  {
+		if realEndX > lineLen {
 			realEndX = lineLen
 		}
 
-		cut.lines[toY] = make([]byte, realEndX-startX+1, realEndX-startX+1)
+		cut.lines[toY] = make([]byte, realEndX-startX+1)
 		copy(cut.lines[toY], b.lines[y][startX:realEndX])
 		toY++
 
@@ -88,8 +96,7 @@ func (b *TextBlock) copyRegion(startX, startY, endX, endY int, doCut bool) *Text
 			continue
 		}
 
-		panic("not tested")
-
+		// TODO Not tested
 		fromX := endX
 		for x := startX; x < endX; x++ {
 			if fromX >= len(b.lines[y]) {

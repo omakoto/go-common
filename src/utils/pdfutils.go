@@ -28,4 +28,3 @@ func ReadPdfAsText(file string, keepLayout bool) ([]byte, error) {
 
 	return ioutil.ReadAll(in)
 }
-
