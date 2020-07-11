@@ -16,11 +16,13 @@ var (
 	cachedHome    = ""
 
 	DebugEnabled = false
+	VerboseEnabled = false
 )
 
 func init() {
 	if GetBinEnv("DEBUG") == "1" || os.Getenv("DEBUG") == "1" {
 		DebugEnabled = true
+		VerboseEnabled = true
 	}
 }
 
@@ -171,6 +173,20 @@ func Debugf(format string, args ...interface{}) {
 		return
 	}
 	Debug(fmt.Sprintf(format, args...))
+}
+
+func Verbose(message string) {
+	if !VerboseEnabled && !DebugEnabled {
+		return
+	}
+	fmt.Fprint(os.Stderr, message, maybeLf(message))
+}
+
+func Verbosef(format string, args ...interface{}) {
+	if !VerboseEnabled && !DebugEnabled {
+		return
+	}
+	Verbose(fmt.Sprintf(format, args...))
 }
 
 func Dump(prefix string, object interface{}) {
