@@ -15,7 +15,7 @@ var (
 	cachedBinName = ""
 	cachedHome    = ""
 
-	DebugEnabled = false
+	DebugEnabled   = false
 	VerboseEnabled = false
 )
 
