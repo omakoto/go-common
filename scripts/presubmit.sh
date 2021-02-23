@@ -10,5 +10,5 @@ go test -v -race ./...                   # Run all the tests with the race detec
 
 echo "Running extra checks..."
 go vet ./...                             # go vet is the official Go static analyzer
-staticcheck ./...
+# staticcheck ./...
 golint $(go list ./...) |& grep -v 'exported .* should \(have\|be\)' | perl -pe 'END{exit($. > 0 ? 1 : 0)}'

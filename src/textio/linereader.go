@@ -2,7 +2,6 @@ package textio
 
 import (
 	"bufio"
-	"github.com/pborman/getopt/v2"
 	"io"
 )
 
@@ -20,7 +19,7 @@ func (b *bufioLineReader) ReadLine() (line []byte, err error) {
 }
 
 var (
-	defaultBufferSize = getopt.IntLong("read-buffer-size", 0, 4096, "Specify read buffer size.")
+	defaultBufferSize = 1024 * 32 // getopt.IntLong("read-buffer-size", 0, 4096, "Specify read buffer size.")
 )
 
 type lineReader struct {
@@ -47,8 +46,8 @@ func NewLineReader(r io.Reader, crAware bool) LineReader {
 	if crAware {
 		return &lineReader{
 			reader: r,
-			buf:    make([]byte, *defaultBufferSize),
-			line:   make([]byte, 0, *defaultBufferSize),
+			buf:    make([]byte, defaultBufferSize),
+			line:   make([]byte, 0, defaultBufferSize),
 		}
 	}
 	return &bufioLineReader{bufio.NewReader(r)}
