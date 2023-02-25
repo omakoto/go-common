@@ -7,5 +7,5 @@ require (
 	github.com/mattn/go-isatty v0.0.9
 	github.com/mattn/go-runewidth v0.0.4
 	github.com/stretchr/testify v1.4.0
-	golang.org/x/crypto v0.0.0-20190927123631-a832865fa7ad
+	golang.org/x/crypto v0.1.0
 )
