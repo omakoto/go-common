@@ -3,11 +3,12 @@ package termio
 import (
 	"bytes"
 	"fmt"
-	"github.com/omakoto/go-common/src/common"
-	"golang.org/x/crypto/ssh/terminal"
 	"os"
 	"syscall"
 	"time"
+
+	"github.com/omakoto/go-common/src/common"
+	"golang.org/x/term"
 )
 
 type Term interface {
@@ -116,7 +117,7 @@ func NewTerm(in, out *os.File, forcedWidth, forcedHeight int) (Term, error) {
 
 func (t *termImpl) Clear() {
 	if !t.forceSize {
-		w, h, err := terminal.GetSize(1)
+		w, h, err := term.GetSize(1)
 		common.Check(err, "Unable to get terminal size.")
 		t.width = w
 		t.height = h

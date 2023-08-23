@@ -1,10 +1,11 @@
 package utils
 
 import (
-	"github.com/omakoto/go-common/src/common"
-	"io/ioutil"
+	"io"
 	"os"
 	"os/exec"
+
+	"github.com/omakoto/go-common/src/common"
 )
 
 // ReadPdfAsText reads a given PDF file as text.
@@ -26,5 +27,5 @@ func ReadPdfAsText(file string, keepLayout bool) ([]byte, error) {
 	err = cmd.Start()
 	common.Checkf(err, "Failed executing pdftotext: %v", err)
 
-	return ioutil.ReadAll(in)
+	return io.ReadAll(in)
 }

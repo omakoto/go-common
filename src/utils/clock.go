@@ -1,11 +1,12 @@
 package utils
 
 import (
-	"github.com/omakoto/go-common/src/common"
-	"io/ioutil"
+	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/omakoto/go-common/src/common"
 )
 
 var (
@@ -25,7 +26,7 @@ func (clock) Now() time.Time {
 	if timeOverrideFile == "" {
 		return time.Now()
 	}
-	bytes, err := ioutil.ReadFile(timeOverrideFile)
+	bytes, err := os.ReadFile(timeOverrideFile)
 	common.Check(err, "ReadFile failed")
 	i, err := strconv.ParseInt(strings.TrimRight(string(bytes), "\n"), 10, 64)
 	common.Check(err, "ParseInt failed")
