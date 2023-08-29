@@ -8,27 +8,6 @@ import (
 	"testing"
 )
 
-//	func TestSampleExecCode(t *testing.T) {
-//		var err error
-//		cat := exec.Command("cat", "-An")
-//		//cat.Stdout = os.Stdout
-//		cat.Stderr = os.Stderr
-//		cat.Stdin = MustOpenForRead("/etc/fstab")
-//
-//		grep := exec.Command("grep", "#xx")
-//		grep.Stdin, err = cat.StdoutPipe()
-//		grep.Stdout = os.Stdout
-//		grep.Stderr = os.Stderr
-//
-//		common.Checke(err)
-//
-//		common.Checke(cat.Start())
-//		common.Checke(grep.Start())
-//
-//		CheckWaitError(cat.Wait())
-//		CheckWaitError(grep.Wait())
-//	}
-
 func mustMakeTempFile(content string) string {
 	wr, err := os.CreateTemp("/tmp", "temp*.txt")
 	common.Check(err, "openForWrite failed")
@@ -70,8 +49,40 @@ func TestBasic(t *testing.T) {
 
 		assert.Equal(t, "ok\n", mustReadAllAsString(rd))
 
-		_, err := cw.Wait() // TODO: check status code
+		_, err := cw.Wait()
 		assert.Equal(t, 3, extractStatusCode(err))
+	}
+
+	{
+		var status int
+		out := New().Command("bash", "-c", "echo ok; exit 3").AllowStatus(&status, 3).MustRunAndGetString()
+		assert.Equal(t, "ok\n", out)
+		assert.Equal(t, 3, status)
+	}
+
+	{
+		var status int
+		_, cw := New().Command("bash", "-c", "echo ok; exit 2").AllowStatus(&status, 3, 4).MustRunAndGetReader()
+		_, err := cw.Wait()
+		assert.Equal(t, 2, extractStatusCode(err))
+		assert.Equal(t, 2, status)
+	}
+
+	{
+		var status int
+		out := New().Command("bash", "-c", "echo ok; exit 33").AllowAnyStatus(&status).MustRunAndGetString()
+		assert.Equal(t, "ok\n", out)
+		assert.Equal(t, 33, status)
+	}
+
+	{
+		out := New().Command("bash", "-c", "echo ok; exit 1").AllowAnyStatus(nil).MustRunAndGetString()
+		assert.Equal(t, "ok\n", out)
+	}
+
+	{
+		out := New().Command("bash", "-c", "echo ok; exit 1").AllowStatus(nil, 1).MustRunAndGetString()
+		assert.Equal(t, "ok\n", out)
 	}
 
 	{
@@ -91,6 +102,12 @@ func TestBasic(t *testing.T) {
 
 	{
 		out := New().Command("bash", "-c", "echo out; echo err 1>&2").ErrToOut().PipeOutTo().Command("wc", "-l").MustRunAndGetString()
+		assert.Equal(t, "2\n", out)
+	}
+
+	{
+		// Same as above but ErrToOut() is at a different position.
+		out := New().Command("bash", "-c", "echo out; echo err 1>&2").PipeOutTo().ErrToOut().Command("wc", "-l").MustRunAndGetString()
 		assert.Equal(t, "2\n", out)
 	}
 
@@ -116,4 +133,33 @@ func TestBasic(t *testing.T) {
 		WithStdInFile(temp1).Command("cat", "-An").SetStdOutFile(temp2).MustRunAndWait()
 		assert.Equal(t, "     1\tabc$\n     2\tdef$\n", mustReadAllFileAsString(temp2))
 	}
+
+	{
+		_, err := WithStdInString("abc").Command("cat").Command("cat", "-An").Run()
+		assert.ErrorContains(t, err, "duplicate command detected")
+	}
+
+	{
+		assert.Panics(t, func() {
+			WithStdInString("abc").Run()
+		}, "Expected panic") // TODO Check panic message
+	}
+
+	{
+		assert.Panics(t, func() {
+			WithStdInString("abc").Command("cat").PipeOutTo().Run()
+		}, "Expected panic") // TODO Check panic message
+	}
+
+	// TODO: Test ReuseStdError
+	// It still fails...
+	//{
+	//	var errRd *io.ReadCloser
+	//	rd, cw := New().Command("bash", "-c", "echo out1; echo err 1>&2").GetStdErrPipe(&errRd).PipeOutTo().Command("bash", "-c", "echo out2; echo err 1>&2").ReuseStdError().MustRunAndGetReader()
+	//	assert.Equal(t, "out2\n", mustReadAllAsString(rd))
+	//
+	//	e := mustReadAllAsString(*errRd)
+	//	assert.Equal(t, "err\nerr\n", e)
+	//	cw.MustWait()
+	//}
 }

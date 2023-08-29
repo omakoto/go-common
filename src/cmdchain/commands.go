@@ -49,13 +49,6 @@ func standardValidator(cmd *exec.Cmd, waitError error) error {
 	return waitError
 }
 
-func anyStatusValidator(cmd *exec.Cmd, waitError error) error {
-	if extractStatusCode(waitError) >= 0 {
-		return nil // Allow any status code
-	}
-	return waitError
-}
-
 func ensureNilAndSet[T any](a *T, value T, message string) {
 	if a == nil {
 		panic(message)
@@ -194,20 +187,32 @@ func (c *CommandChain) setValidator(validator commandValidator) {
 }
 
 // AllowAnyStatus will allow the previous command to return any exit status code.
-func (c *CommandChain) AllowAnyStatus() *CommandChain {
-	c.setValidator(anyStatusValidator)
-	return c
-}
-
-// AllowStatus will allow the previous command to return any of specified exit status codes.
-func (c *CommandChain) AllowStatus(allowed ...int) *CommandChain {
+func (c *CommandChain) AllowAnyStatus(actualStatus *int) *CommandChain {
 	c.setValidator(func(cmd *exec.Cmd, waitError error) error {
 		status := extractStatusCode(waitError)
 		if status < 0 {
 			return waitError
 		}
-		for i := range allowed {
-			if i == status {
+		if actualStatus != nil {
+			*actualStatus = status
+		}
+		return nil
+	})
+	return c
+}
+
+// AllowStatus will allow the previous command to return any of specified exit status codes.
+func (c *CommandChain) AllowStatus(actualStatus *int, allowed ...int) *CommandChain {
+	c.setValidator(func(cmd *exec.Cmd, waitError error) error {
+		status := extractStatusCode(waitError)
+		if status < 0 {
+			return waitError
+		}
+		if actualStatus != nil {
+			*actualStatus = status
+		}
+		for _, a := range allowed {
+			if a == status {
 				return nil
 			}
 		}
@@ -292,6 +297,22 @@ func (c *CommandChain) GetStdErrPipe(reader **io.ReadCloser) *CommandChain {
 	return c
 }
 
+// ReuseStdError will copy stderr of the previous command to the current command.
+// Not usable on the first command in a chain.
+//
+// TODO: This doesn't work yet. Fix it.
+func (c *CommandChain) ReuseStdError() *CommandChain {
+	if len(c.Commands) <= 1 {
+		panic("ReuseStdError not allowed on the first command")
+	}
+	prev := arrayGet(c.Commands, -2)
+	cmd := arrayGet(c.Commands, -1)
+
+	ensureNilAndSet(&cmd.Stderr, prev.Stderr, "Stderr already set.")
+
+	return c
+}
+
 func (c *CommandChain) setNextStdin(rd io.ReadCloser) {
 	ensureNilAndSet(&c.nextStdin, io.Reader(rd), "PipeOutTo() or PipeOutErrTo() has already been called.")
 }
@@ -310,6 +331,10 @@ func (c *CommandChain) Run() (*ChainWaiter, error) {
 	if c.deferredError != nil {
 		return nil, c.deferredError
 	}
+	if len(c.Commands) == 0 {
+		panic("Must have at least 1 command")
+	}
+
 	c.fixUpLastCommand()
 	if c.nextStdin != nil {
 		panic("Expecting next command to consume stdin")
