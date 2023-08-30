@@ -2,6 +2,7 @@ package cmdchain
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"github.com/omakoto/go-common/src/common"
 	"github.com/omakoto/go-common/src/textio"
@@ -39,8 +40,9 @@ func MustOpenForWrite(filename string) *os.File {
 type commandValidator func(cmd *exec.Cmd, waitError error) error
 
 func extractStatusCode(waitError error) int {
-	if status, ok := waitError.(*exec.ExitError); ok {
-		return status.ExitCode()
+	var e *exec.ExitError
+	if errors.As(waitError, &e) {
+		return e.ExitCode()
 	}
 	return -1
 }
@@ -314,12 +316,12 @@ func (c *CommandChain) ReuseStdError() *CommandChain {
 }
 
 func (c *CommandChain) setNextStdin(rd io.ReadCloser) {
-	ensureNilAndSet(&c.nextStdin, io.Reader(rd), "PipeOutTo() or PipeOutErrTo() has already been called.")
+	ensureNilAndSet(&c.nextStdin, io.Reader(rd), "Pipe() or PipeOutErrTo() has already been called.")
 }
 
-// PipeOutTo prepares a pipe from stdout of the last command to the next command.
+// Pipe prepares a pipe from stdout of the last command to the next command.
 // It should be followed by Command()
-func (c *CommandChain) PipeOutTo() *CommandChain {
+func (c *CommandChain) Pipe() *CommandChain {
 	var rd *io.ReadCloser
 	c.GetStdOutPipe(&rd)
 	c.setNextStdin(*rd)
@@ -403,7 +405,7 @@ func (cw *ChainWaiter) Wait() (*ChainResult, error) {
 		err = cw.Chain.validators[i](cmd, err)
 
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to wait on command %s: %w", cmd.Path, err)
 		}
 	}
 	return &ChainResult{Chain: cw.Chain}, nil

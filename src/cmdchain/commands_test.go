@@ -101,13 +101,13 @@ func TestBasic(t *testing.T) {
 	}
 
 	{
-		out := New().Command("bash", "-c", "echo out; echo err 1>&2").ErrToOut().PipeOutTo().Command("wc", "-l").MustRunAndGetString()
+		out := New().Command("bash", "-c", "echo out; echo err 1>&2").ErrToOut().Pipe().Command("wc", "-l").MustRunAndGetString()
 		assert.Equal(t, "2\n", out)
 	}
 
 	{
 		// Same as above but ErrToOut() is at a different position.
-		out := New().Command("bash", "-c", "echo out; echo err 1>&2").PipeOutTo().ErrToOut().Command("wc", "-l").MustRunAndGetString()
+		out := New().Command("bash", "-c", "echo out; echo err 1>&2").Pipe().ErrToOut().Command("wc", "-l").MustRunAndGetString()
 		assert.Equal(t, "2\n", out)
 	}
 
@@ -140,26 +140,28 @@ func TestBasic(t *testing.T) {
 	}
 
 	{
-		assert.Panics(t, func() {
+		assert.PanicsWithValue(t, "Must have at least 1 command", func() {
 			WithStdInString("abc").Run()
-		}, "Expected panic") // TODO Check panic message
+		}, "Expected panic")
 	}
 
 	{
-		assert.Panics(t, func() {
-			WithStdInString("abc").Command("cat").PipeOutTo().Run()
-		}, "Expected panic") // TODO Check panic message
+		assert.PanicsWithValue(t, "Expecting next command to consume stdin", func() {
+			WithStdInString("abc").Command("cat").Pipe().Run()
+		}, "Expected panic")
 	}
 
-	// TODO: Test ReuseStdError
-	// It still fails...
-	//{
-	//	var errRd *io.ReadCloser
-	//	rd, cw := New().Command("bash", "-c", "echo out1; echo err 1>&2").GetStdErrPipe(&errRd).PipeOutTo().Command("bash", "-c", "echo out2; echo err 1>&2").ReuseStdError().MustRunAndGetReader()
-	//	assert.Equal(t, "out2\n", mustReadAllAsString(rd))
-	//
-	//	e := mustReadAllAsString(*errRd)
-	//	assert.Equal(t, "err\nerr\n", e)
-	//	cw.MustWait()
-	//}
+	{
+		var errRd1 *io.ReadCloser
+		var errRd2 *io.ReadCloser
+		rd, cw := New().Command("bash", "-c", "echo out1; echo err1 1>&2; exit 0").GetStdErrPipe(&errRd1).Pipe().Command("bash", "-c", "cat ; echo out2; echo err2 1>&2; exit 0").GetStdErrPipe(&errRd2).MustRunAndGetReader()
+		defer cw.MustWait()
+
+		assert.Equal(t, "out1\nout2\n", mustReadAllAsString(rd))
+
+		assert.Equal(t, "err1\n", mustReadAllAsString(*errRd1))
+		assert.Equal(t, "err2\n", mustReadAllAsString(*errRd2))
+	}
+
+	// TODO Implement and reuse ReuseStdError. We should ensure the previous stderr is a File, and if so, use a Dup of it.
 }
