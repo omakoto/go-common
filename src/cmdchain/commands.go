@@ -12,10 +12,6 @@ import (
 	"strings"
 )
 
-const StdOut = "/dev/stdout"
-const StdIn = "/dev/stdin"
-const StdErr = "/dev/stderr"
-
 func openForRead(filename string) (*os.File, error) {
 
 	return os.OpenFile(filename, os.O_RDONLY, 0)
@@ -51,9 +47,9 @@ func standardValidator(cmd *exec.Cmd, waitError error) error {
 	return waitError
 }
 
-func ensureNilAndSet[T any](a *T, value T, message string) {
+func ensureNilAndSet[T any](a *T, value T, format string, args ...any) {
 	if a == nil {
-		panic(message)
+		panic(fmt.Sprintf(format, args...))
 	}
 	*a = value
 }
@@ -112,10 +108,18 @@ func (c *CommandChain) getDefaultStderr() io.Writer {
 	return os.Stderr
 }
 
+func (c *CommandChain) getCommandDescription(index int) string {
+	if index < 0 {
+		index += len(c.Commands)
+	}
+	cmd := c.Commands[index]
+	return fmt.Sprintf("\"%s\" at index %d in the chain", cmd.Path, index)
+}
+
 func (c *CommandChain) fixUpLastCommand() {
 	cmd := c.lastCommand()
 	if c.prevErrToOut {
-		ensureNilAndSet(&cmd.Stderr, cmd.Stdout, "Stderr has already been set")
+		ensureNilAndSet(&cmd.Stderr, cmd.Stdout, "Stderr has already been set to command %s", c.getCommandDescription(-1))
 	}
 	if cmd.Stdout == nil {
 		cmd.Stdout = c.getDefaultStdout()
@@ -163,7 +167,7 @@ func (c *CommandChain) Command(name string, args ...string) *CommandChain {
 		if len(c.Commands) == 1 {
 			cmd.Stdin = os.Stdin
 		} else {
-			c.deferredError = fmt.Errorf("duplicate command detected (\"%s\") without a pipe", name)
+			c.deferredError = fmt.Errorf("duplicate command \"%s\" detected without a pipe", name)
 		}
 	}
 
@@ -185,7 +189,7 @@ func (c *CommandChain) CommandWithEnv(env map[string]string, name string, args .
 }
 
 func (c *CommandChain) setValidator(validator commandValidator) {
-	ensureNilAndSet(&c.validators[len(c.validators)-1], validator, "command status code validator is already set")
+	ensureNilAndSet(&c.validators[len(c.validators)-1], validator, "command status code validator is already set to command %s", c.getCommandDescription(-1))
 }
 
 // AllowAnyStatus will allow the previous command to return any exit status code.
@@ -225,32 +229,32 @@ func (c *CommandChain) AllowStatus(actualStatus *int, allowed ...int) *CommandCh
 
 // SetDefaultOut Set the default stdout to the subsequent commands.
 func (c *CommandChain) SetDefaultOut(writer io.Writer) *CommandChain {
-	ensureNilAndSet(&c.defaultStdout, writer, "SetDefaultOut has already been called")
+	c.defaultStdout = writer
 	return c
 }
 
 // SetDefaultErr Set the default stderr to the subsequent commands.
 func (c *CommandChain) SetDefaultErr(writer io.Writer) *CommandChain {
-	ensureNilAndSet(&c.defaultStderr, writer, "SetDefaultErr has already been called")
+	c.defaultStderr = writer
 	return c
 }
 
-// SetStdOut sets a writer to the stdout of the last command.
-func (c *CommandChain) SetStdOut(writer io.Writer) *CommandChain {
-	ensureNilAndSet(&c.lastCommand().Stdout, writer, "Stdout already set")
+// SetStdout sets a writer to the stdout of the last command.
+func (c *CommandChain) SetStdout(writer io.Writer) *CommandChain {
+	ensureNilAndSet(&c.lastCommand().Stdout, writer, "Stdout already set to command %s", c.getCommandDescription(-1))
 	return c
 }
 
-// SetStdErr sets a writer to the stderr of the last command.
-func (c *CommandChain) SetStdErr(writer io.Writer) *CommandChain {
-	ensureNilAndSet(&c.lastCommand().Stderr, writer, "Stdoerr already set")
+// SetStderr sets a writer to the stderr of the last command.
+func (c *CommandChain) SetStderr(writer io.Writer) *CommandChain {
+	ensureNilAndSet(&c.lastCommand().Stderr, writer, "Stderr already set to command %s", c.getCommandDescription(-1))
 	return c
 }
 
 // ErrToOut redirects stderr of the last command to stdout
 func (c *CommandChain) ErrToOut() *CommandChain {
 	if c.prevErrToOut {
-		panic("ErrToOut has already been called")
+		panic(fmt.Sprintf("ErrToOut has already been called on command %s", c.getCommandDescription(-1)))
 	}
 	c.prevErrToOut = true
 	return c
@@ -258,31 +262,30 @@ func (c *CommandChain) ErrToOut() *CommandChain {
 
 func (c *CommandChain) setOutFile(filename string, stdout, stderr bool) *CommandChain {
 	f, err := openForWrite(filename)
-	cmd := c.lastCommand()
 	if stdout {
-		ensureNilAndSet(&cmd.Stdout, io.Writer(f), "Stdout has already been set")
+		c.SetStdout(io.Writer(f))
 	}
 	if stderr {
-		ensureNilAndSet(&cmd.Stderr, io.Writer(f), "Stderr has already been set")
+		c.SetStderr(io.Writer(f))
 	}
 	c.setDeferredError(err)
 	return c
 }
 
-// SetStdOutFile sets a file to the stdout of the last command.
-func (c *CommandChain) SetStdOutFile(filename string) *CommandChain {
+// SetStdoutFile sets a file to the stdout of the last command.
+func (c *CommandChain) SetStdoutFile(filename string) *CommandChain {
 	c.setOutFile(filename, true, false)
 	return c
 }
 
-// SetStdErrFile sets a file to the stderr of the last command.
-func (c *CommandChain) SetStdErrFile(filename string) *CommandChain {
+// SetStderrFile sets a file to the stderr of the last command.
+func (c *CommandChain) SetStderrFile(filename string) *CommandChain {
 	c.setOutFile(filename, false, true)
 	return c
 }
 
-// GetStdOutPipe gets a pipe from stdout of the last command.
-func (c *CommandChain) GetStdOutPipe(reader **io.ReadCloser) *CommandChain {
+// GetStdoutPipe gets a pipe from stdout of the last command.
+func (c *CommandChain) GetStdoutPipe(reader **io.ReadCloser) *CommandChain {
 	cmd := c.lastCommand()
 	p, err := cmd.StdoutPipe()
 	c.setDeferredError(err)
@@ -290,8 +293,8 @@ func (c *CommandChain) GetStdOutPipe(reader **io.ReadCloser) *CommandChain {
 	return c
 }
 
-// GetStdErrPipe gets a pipe from stderr of the last command.
-func (c *CommandChain) GetStdErrPipe(reader **io.ReadCloser) *CommandChain {
+// GetStderrPipe gets a pipe from stderr of the last command.
+func (c *CommandChain) GetStderrPipe(reader **io.ReadCloser) *CommandChain {
 	cmd := c.lastCommand()
 	p, err := cmd.StderrPipe()
 	c.setDeferredError(err)
@@ -299,31 +302,42 @@ func (c *CommandChain) GetStdErrPipe(reader **io.ReadCloser) *CommandChain {
 	return c
 }
 
-// ReuseStdError will copy stderr of the previous command to the current command.
-// Not usable on the first command in a chain.
+//func dupFile(file *os.File) *os.File {
+//	fd := file.Fd()
+//	newFd, err := syscall.Dup(int(fd))
+//	common.Check(err, "Dup() failed")
 //
-// TODO: This doesn't work yet. Fix it.
-func (c *CommandChain) ReuseStdError() *CommandChain {
-	if len(c.Commands) <= 1 {
-		panic("ReuseStdError not allowed on the first command")
-	}
-	prev := arrayGet(c.Commands, -2)
-	cmd := arrayGet(c.Commands, -1)
-
-	ensureNilAndSet(&cmd.Stderr, prev.Stderr, "Stderr already set.")
-
-	return c
-}
+//	return os.NewFile(uintptr(newFd), file.Name())
+//}
+//
+//// ReuseStderr will copy stderr of the previous command to the current command.
+//// Not usable on the first command in a chain.
+////
+//// TODO: This doesn't work yet. Fix it.
+//func (c *CommandChain) ReuseStderr() *CommandChain {
+//	if len(c.Commands) <= 1 {
+//		panic("ReuseStderr not allowed on the first command")
+//	}
+//	prev := arrayGet(c.Commands, -2)
+//
+//	if f, ok := prev.Stderr.(*os.File); !ok {
+//		panic(fmt.Sprintf("Stdout of command %s isn't a File nor a pipe", c.getCommandDescription(-2)))
+//	} else {
+//		c.SetStderr(dupFile(f))
+//	}
+//
+//	return c
+//}
 
 func (c *CommandChain) setNextStdin(rd io.ReadCloser) {
-	ensureNilAndSet(&c.nextStdin, io.Reader(rd), "Pipe() or PipeOutErrTo() has already been called.")
+	ensureNilAndSet(&c.nextStdin, io.Reader(rd), "Pipe() has already been called on command %s", c.getCommandDescription(-1))
 }
 
 // Pipe prepares a pipe from stdout of the last command to the next command.
 // It should be followed by Command()
 func (c *CommandChain) Pipe() *CommandChain {
 	var rd *io.ReadCloser
-	c.GetStdOutPipe(&rd)
+	c.GetStdoutPipe(&rd)
 	c.setNextStdin(*rd)
 	return c
 }
@@ -366,7 +380,7 @@ func (c *CommandChain) MustRunAndWait() *ChainResult {
 // MustRunAndGetReader starts a CommandChain and get stdout of the last command as an io.Reader.
 func (c *CommandChain) MustRunAndGetReader() (io.Reader, *ChainWaiter) {
 	var rd *io.ReadCloser
-	c.GetStdOutPipe(&rd)
+	c.GetStdoutPipe(&rd)
 
 	cw := c.MustRun()
 
