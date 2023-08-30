@@ -167,6 +167,12 @@ func (c *CommandChain) cleanUp() {
 	}
 }
 
+func (c *CommandChain) ensureHasCommand() {
+	if len(c.Commands) == 0 {
+		panic("No command is set yet.")
+	}
+}
+
 func (c *CommandChain) getDefaultStdout() io.Writer {
 	if c.defaultStdout != nil {
 		return c.defaultStdout
@@ -214,9 +220,7 @@ func (c *CommandChain) setDeferredError(err error) *CommandChain {
 }
 
 func (c *CommandChain) lastCommand() *exec.Cmd {
-	if len(c.Commands) == 0 {
-		panic("No command is set yet.")
-	}
+	c.ensureHasCommand()
 	return c.Commands[len(c.Commands)-1]
 }
 
@@ -442,6 +446,7 @@ func (c *CommandChain) setNextStdin(rd io.ReadCloser) {
 // It should be followed by Command()
 func (c *CommandChain) Pipe() *CommandChain {
 	c.ensureBuilding()
+
 	var rd *io.ReadCloser
 	c.getStdoutPipe(&rd)
 	c.setNextStdin(*rd)
@@ -452,9 +457,7 @@ func (c *CommandChain) validateBeforeRun() error {
 	if c.deferredError != nil {
 		return c.deferredError
 	}
-	if len(c.Commands) == 0 {
-		panic("Must have at least 1 command")
-	}
+	c.ensureHasCommand()
 	if c.nextStdin != nil {
 		panic("Expecting next command to consume stdin")
 	}
