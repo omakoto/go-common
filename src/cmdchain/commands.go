@@ -42,6 +42,9 @@ func NewBytesReader() *BytesReader {
 }
 
 func (b *BytesReader) Get() []byte {
+	if b.data == nil {
+		panic("CommandChain hasn't been waited yet.")
+	}
 	return b.data
 }
 
@@ -473,15 +476,14 @@ func (cw *ChainWaiter) Wait() (*ChainResult, error) {
 			errf := cmd.Stderr.(*os.File)
 			errf.Seek(0, 0)
 
-			_, err := io.ReadAll(errf)
+			data, err := io.ReadAll(errf)
 			if err != nil {
 				if firstError == nil {
 					firstError = fmt.Errorf("failed to read from tempfile %s: %w", errf.Name(), err)
 					continue
 				}
 			}
-			ser.data = []byte("abc") // data
-			//panic(string(ser.data))
+			ser.data = data
 		}
 	}
 	if firstError != nil {

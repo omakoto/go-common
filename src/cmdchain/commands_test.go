@@ -153,25 +153,24 @@ func TestBasic(t *testing.T) {
 
 	{
 		erd := NewBytesReader()
-
 		rd, cw := New().Command("bash", "-c", "echo out1; echo err1 1>&2; exit 0").SaveStderr(erd).MustRunAndGetReader()
-		defer cw.MustWait()
-
 		assert.Equal(t, "out1\n", mustReadAllAsString(rd))
-		assert.Equal(t, "err1\n", erd.Get())
-	}
-	//
-	//{
-	//	var errRd1 *io.PipeReader
-	//	var errRd2 *io.PipeReader
-	//	rd, cw := New().Command("bash", "-c", "echo out1; echo err1 1>&2; exit 0").GetStderrReader(&errRd1).Pipe().Command("bash", "-c", "cat ; echo out2; echo err2 1>&2; exit 0").GetStderrReader(&errRd2).MustRunAndGetReader()
-	//	defer cw.MustWait()
-	//
-	//	assert.Equal(t, "out1\nout2\n", mustReadAllAsString(rd))
-	//
-	//	assert.Equal(t, "err1\n", mustReadAllAsString(errRd1))
-	//	assert.Equal(t, "err2\n", mustReadAllAsString(errRd2))
-	//}
 
-	// TODO Implement and reuse ReuseStderr. We should ensure the previous stderr is a File, and if so, use a Dup of it.
+		cw.MustWait()
+
+		assert.Equal(t, "err1\n", string(erd.Get()))
+	}
+
+	{
+		erd1 := NewBytesReader()
+		erd2 := NewBytesReader()
+		rd, cw := New().Command("bash", "-c", "echo out1; echo err1 1>&2; exit 0").SaveStderr(erd1).Pipe().Command("bash", "-c", "cat ; echo out2; echo err2 1>&2; exit 0").SaveStderr(erd2).MustRunAndGetReader()
+
+		assert.Equal(t, "out1\nout2\n", mustReadAllAsString(rd))
+
+		cw.MustWait()
+
+		assert.Equal(t, "err1\n", string(erd1.Get()))
+		assert.Equal(t, "err2\n", string(erd2.Get()))
+	}
 }
