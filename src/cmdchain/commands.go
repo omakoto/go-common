@@ -33,6 +33,18 @@ func MustOpenForWrite(filename string) *os.File {
 	return ret
 }
 
+type BytesReader struct {
+	data []byte
+}
+
+func NewBytesReader() *BytesReader {
+	return &BytesReader{}
+}
+
+func (b *BytesReader) Get() []byte {
+	return b.data
+}
+
 type commandValidator func(cmd *exec.Cmd, waitError error) error
 
 func extractStatusCode(waitError error) int {
@@ -79,8 +91,9 @@ type CommandChain struct {
 
 	prevErrToOut bool
 
-	Commands   []*exec.Cmd
-	validators []commandValidator
+	Commands     []*exec.Cmd
+	validators   []commandValidator
+	stderrReader []*BytesReader
 }
 
 // ChainWaiter is a handle that can be wait()'ed on.
@@ -159,6 +172,7 @@ func (c *CommandChain) Command(name string, args ...string) *CommandChain {
 
 	c.Commands = append(c.Commands, cmd)
 	c.validators = append(c.validators, nil)
+	c.stderrReader = append(c.stderrReader, nil)
 
 	if c.nextStdin != nil {
 		cmd.Stdin = c.nextStdin
@@ -284,23 +298,39 @@ func (c *CommandChain) SetStderrFile(filename string) *CommandChain {
 	return c
 }
 
-// GetStdoutPipe gets a pipe from stdout of the last command.
-func (c *CommandChain) GetStdoutPipe(reader **io.ReadCloser) *CommandChain {
+// getStdoutPipe gets a pipe from stdout of the last command.
+// This should only be used internally.
+func (c *CommandChain) getStdoutPipe(reader **io.ReadCloser) *CommandChain {
 	cmd := c.lastCommand()
 	p, err := cmd.StdoutPipe()
-	c.setDeferredError(err)
+	if err != nil {
+		c.setDeferredError(fmt.Errorf("StdoutPipe() failed on %s: %w", c.getCommandDescription(-1), err))
+	}
 	*reader = &p
 	return c
 }
 
-// GetStderrPipe gets a pipe from stderr of the last command.
-func (c *CommandChain) GetStderrPipe(reader **io.ReadCloser) *CommandChain {
-	cmd := c.lastCommand()
-	p, err := cmd.StderrPipe()
-	c.setDeferredError(err)
-	*reader = &p
+// SaveStderr saves stderr to a tempfile and sends it to con when all the commands are done.
+func (c *CommandChain) SaveStderr(r *BytesReader) *CommandChain {
+	temp, err := os.CreateTemp(os.TempDir(), "stderr*.dat")
+	if err != nil {
+		c.setDeferredError(fmt.Errorf("CreateTemp() failed on %s: %w", c.getCommandDescription(-1), err))
+		return c
+	}
+	c.SetStderr(temp)
+
+	arraySet(c.stderrReader, -1, r)
+
 	return c
 }
+
+//// GetStderrReader gets a pipe from stderr of the last command.
+//func (c *CommandChain) GetStderrReader(reader **io.PipeReader) *CommandChain {
+//	rd, wr := io.Pipe()
+//	c.SetStderr(wr)
+//	*reader = rd
+//	return c
+//}
 
 //func dupFile(file *os.File) *os.File {
 //	fd := file.Fd()
@@ -337,24 +367,31 @@ func (c *CommandChain) setNextStdin(rd io.ReadCloser) {
 // It should be followed by Command()
 func (c *CommandChain) Pipe() *CommandChain {
 	var rd *io.ReadCloser
-	c.GetStdoutPipe(&rd)
+	c.getStdoutPipe(&rd)
 	c.setNextStdin(*rd)
 	return c
 }
 
-// Run starts a CommandChain.
-func (c *CommandChain) Run() (*ChainWaiter, error) {
+func (c *CommandChain) validateBeforeRun() error {
 	if c.deferredError != nil {
-		return nil, c.deferredError
+		return c.deferredError
 	}
 	if len(c.Commands) == 0 {
 		panic("Must have at least 1 command")
 	}
-
-	c.fixUpLastCommand()
 	if c.nextStdin != nil {
 		panic("Expecting next command to consume stdin")
 	}
+	return nil
+}
+
+// Run starts a CommandChain.
+func (c *CommandChain) Run() (*ChainWaiter, error) {
+	err := c.validateBeforeRun()
+	if err != nil {
+		return nil, err
+	}
+	c.fixUpLastCommand()
 
 	for i, cmd := range c.Commands {
 		err := cmd.Start()
@@ -379,8 +416,11 @@ func (c *CommandChain) MustRunAndWait() *ChainResult {
 
 // MustRunAndGetReader starts a CommandChain and get stdout of the last command as an io.Reader.
 func (c *CommandChain) MustRunAndGetReader() (io.Reader, *ChainWaiter) {
+	err := c.validateBeforeRun()
+	common.Check(err, "Unable to execute command(s)")
+
 	var rd *io.ReadCloser
-	c.GetStdoutPipe(&rd)
+	c.getStdoutPipe(&rd)
 
 	cw := c.MustRun()
 
@@ -414,14 +454,40 @@ func (c *CommandChain) MustRunAndGetStrings() []string {
 
 // Wait wait() on all commands in a CommandChain.
 func (cw *ChainWaiter) Wait() (*ChainResult, error) {
+
+	var firstError error
 	for i, cmd := range cw.Chain.Commands {
 		err := cmd.Wait()
 		err = cw.Chain.validators[i](cmd, err)
 
 		if err != nil {
-			return nil, fmt.Errorf("failed to wait on command %s: %w", cmd.Path, err)
+			if firstError == nil {
+				firstError = fmt.Errorf("failed to wait on command %s: %w", cmd.Path, err)
+			}
+			continue
+		}
+
+		// See if there's any stderr consumers.
+		ser := cw.Chain.stderrReader[i]
+		if ser != nil {
+			errf := cmd.Stderr.(*os.File)
+			errf.Seek(0, 0)
+
+			_, err := io.ReadAll(errf)
+			if err != nil {
+				if firstError == nil {
+					firstError = fmt.Errorf("failed to read from tempfile %s: %w", errf.Name(), err)
+					continue
+				}
+			}
+			ser.data = []byte("abc") // data
+			//panic(string(ser.data))
 		}
 	}
+	if firstError != nil {
+		return nil, firstError
+	}
+
 	return &ChainResult{Chain: cw.Chain}, nil
 }
 
