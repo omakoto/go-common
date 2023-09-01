@@ -14,7 +14,6 @@ import (
 )
 
 func openForRead(filename string) (*os.File, error) {
-
 	return os.OpenFile(filename, os.O_RDONLY, 0)
 }
 
@@ -29,7 +28,7 @@ func MustOpenForRead(filename string) *os.File {
 	return ret
 }
 
-// // MustOpenForRead opens a file for reading. opens (or creates) a file for writing.
+// MustOpenForWrite opens (or creates) a file for writing.
 func MustOpenForWrite(filename string) *os.File {
 	ret, err := openForWrite(filename)
 	common.Check(err, fmt.Sprintf("Unable to open file %s for writing", filename))
@@ -114,6 +113,36 @@ type ChainWaiter struct {
 // (For now it only provides a reference to the originating command CommandChain.)
 type ChainResult struct {
 	Chain *CommandChain
+}
+
+// New creates a new CommandChain.
+func New() *CommandChain {
+	return &CommandChain{}
+}
+
+// WithStdIn creates a new CommandChain, with a given io.Reader as strin.
+func WithStdIn(reader io.Reader) *CommandChain {
+	ret := New()
+	ret.nextStdin = reader
+	return ret
+}
+
+// WithStdInFile creates a new CommandChain, with a given file as stdin.
+func WithStdInFile(filename string) *CommandChain {
+	in, err := openForRead(filename)
+	ret := WithStdIn(in)
+	ret.setDeferredError(err)
+	return ret
+}
+
+// WithStdInString creates a new CommandChain, with a given string as stdin.
+func WithStdInString(text string) *CommandChain {
+	return WithStdInBytes([]byte(text))
+}
+
+// WithStdInBytes creates a new CommandChain, with a given []byte as stdin.
+func WithStdInBytes(data []byte) *CommandChain {
+	return WithStdIn(bytes.NewReader(data))
 }
 
 func (c *CommandChain) getDefaultStdout() io.Writer {
@@ -231,6 +260,7 @@ func (c *CommandChain) AllowAnyStatus(actualStatus *int) *CommandChain {
 }
 
 // AllowStatus will allow the previous command to return any of specified exit status codes.
+// At least one status code must be provided.
 func (c *CommandChain) AllowStatus(actualStatus *int, allowed ...int) *CommandChain {
 	if len(allowed) == 0 {
 		panic("AllowStatus expects 1 or more allowed status codes.")
@@ -286,27 +316,23 @@ func (c *CommandChain) ErrToOut() *CommandChain {
 	return c
 }
 
-func (c *CommandChain) setOutFile(filename string, stdout, stderr bool) *CommandChain {
+// SetStdoutFile sets a file to the stdout of the last command.
+func (c *CommandChain) SetStdoutFile(filename string) *CommandChain {
 	f, err := openForWrite(filename)
-	if stdout {
+	if err != nil {
 		c.SetStdout(io.Writer(f))
-	}
-	if stderr {
-		c.SetStderr(io.Writer(f))
 	}
 	c.setDeferredError(err)
 	return c
 }
 
-// SetStdoutFile sets a file to the stdout of the last command.
-func (c *CommandChain) SetStdoutFile(filename string) *CommandChain {
-	c.setOutFile(filename, true, false)
-	return c
-}
-
 // SetStderrFile sets a file to the stderr of the last command.
 func (c *CommandChain) SetStderrFile(filename string) *CommandChain {
-	c.setOutFile(filename, false, true)
+	f, err := openForWrite(filename)
+	if err != nil {
+		c.SetStderr(io.Writer(f))
+	}
+	c.setDeferredError(err)
 	return c
 }
 
@@ -317,6 +343,7 @@ func (c *CommandChain) getStdoutPipe(reader **io.ReadCloser) *CommandChain {
 	p, err := cmd.StdoutPipe()
 	if err != nil {
 		c.setDeferredError(fmt.Errorf("StdoutPipe() failed on %s: %w", c.getCommandDescription(-1), err))
+		return c
 	}
 	*reader = &p
 	return c
@@ -330,46 +357,9 @@ func (c *CommandChain) SaveStderr(r *BytesReader) *CommandChain {
 		return c
 	}
 	c.SetStderr(temp)
-
 	arraySet(c.stderrReader, -1, r)
-
 	return c
 }
-
-//// GetStderrReader gets a pipe from stderr of the last command.
-//func (c *CommandChain) GetStderrReader(reader **io.PipeReader) *CommandChain {
-//	rd, wr := io.Pipe()
-//	c.SetStderr(wr)
-//	*reader = rd
-//	return c
-//}
-
-//func dupFile(file *os.File) *os.File {
-//	fd := file.Fd()
-//	newFd, err := syscall.Dup(int(fd))
-//	common.Check(err, "Dup() failed")
-//
-//	return os.NewFile(uintptr(newFd), file.Name())
-//}
-//
-//// ReuseStderr will copy stderr of the previous command to the current command.
-//// Not usable on the first command in a chain.
-////
-//// TODO: This doesn't work yet. Fix it.
-//func (c *CommandChain) ReuseStderr() *CommandChain {
-//	if len(c.Commands) <= 1 {
-//		panic("ReuseStderr not allowed on the first command")
-//	}
-//	prev := arrayGet(c.Commands, -2)
-//
-//	if f, ok := prev.Stderr.(*os.File); !ok {
-//		panic(fmt.Sprintf("Stdout of command %s isn't a File nor a pipe", c.getCommandDescription(-2)))
-//	} else {
-//		c.SetStderr(dupFile(f))
-//	}
-//
-//	return c
-//}
 
 func (c *CommandChain) setNextStdin(rd io.ReadCloser) {
 	ensureNilAndSet(&c.nextStdin, io.Reader(rd), "Pipe() has already been called on command %s", c.getCommandDescription(-1))
@@ -566,34 +556,4 @@ func (cw *ChainWaiter) MustWait() *ChainResult {
 	cr, err := cw.Wait()
 	common.Checke(err)
 	return cr
-}
-
-// New creates a new CommandChain.
-func New() *CommandChain {
-	return &CommandChain{}
-}
-
-// WithStdIn creates a new CommandChain, with a given io.Reader as strin.
-func WithStdIn(reader io.Reader) *CommandChain {
-	ret := New()
-	ret.nextStdin = reader
-	return ret
-}
-
-// WithStdInFile creates a new CommandChain, with a given file as stdin.
-func WithStdInFile(filename string) *CommandChain {
-	in, err := openForRead(filename)
-	ret := WithStdIn(in)
-	ret.setDeferredError(err)
-	return ret
-}
-
-// WithStdInString creates a new CommandChain, with a given string as stdin.
-func WithStdInString(text string) *CommandChain {
-	return WithStdInBytes([]byte(text))
-}
-
-// WithStdInBytes creates a new CommandChain, with a given []byte as stdin.
-func WithStdInBytes(data []byte) *CommandChain {
-	return WithStdIn(bytes.NewReader(data))
 }
