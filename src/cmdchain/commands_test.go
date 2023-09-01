@@ -185,4 +185,31 @@ func TestBasic(t *testing.T) {
 		assert.Equal(t, "err1\n", string(erd1.Get()))
 		assert.Equal(t, "err2\n", string(erd2.Get()))
 	}
+
+	{
+		var rd *io.ReadCloser
+		cw, err := New().Command("bash", "-c", "echo out").getStdoutPipe(&rd).Run()
+		assert.NoErrorf(t, err, "Run")
+
+		assert.Equal(t, "out\n", mustReadAllAsString(*rd))
+
+		cw.MustWait()
+	}
+
+	// This doesn't work. Not sure why.
+	//{
+	//	var start, end time.Time
+	//
+	//	con := func(s string) {
+	//		switch s {
+	//		case "out1":
+	//			start = time.Now()
+	//		case "out2":
+	//			end = time.Now()
+	//		}
+	//	}
+	//	New().Command("bash", "-c", "stdbuf -oL /usr/bin/echo out1; sleep 0.5; stdbuf -oL /usr/bin/echo out2").MustRunAndStreamStringsBufSize(con, 1)
+	//
+	//	assert.LessOrEqualf(t, time.Duration(500_000_000), end.Sub(start), "Didn't received the strings 500ms apart. (start=%s, end=%s)", start, end)
+	//}
 }
