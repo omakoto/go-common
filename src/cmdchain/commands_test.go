@@ -140,7 +140,7 @@ func TestBasic(t *testing.T) {
 	}
 
 	{
-		assert.PanicsWithValue(t, "Must have at least 1 command", func() {
+		assert.PanicsWithValue(t, "No command is set yet.", func() {
 			WithStdInString("abc").Run()
 		}, "Expected panic")
 	}
@@ -148,6 +148,18 @@ func TestBasic(t *testing.T) {
 	{
 		assert.PanicsWithValue(t, "Expecting next command to consume stdin", func() {
 			WithStdInString("abc").Command("cat").Pipe().Run()
+		}, "Expected panic")
+	}
+
+	{
+		assert.PanicsWithValue(t, "No command is set yet.", func() {
+			New().Pipe().Run()
+		}, "Expected panic")
+	}
+
+	{
+		assert.PanicsWithValue(t, "No command is set yet.", func() {
+			WithStdInString("abc").Pipe().Run()
 		}, "Expected panic")
 	}
 

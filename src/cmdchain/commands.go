@@ -11,6 +11,18 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
+	"sync/atomic"
+)
+
+// TODO Clean up temp files.
+
+const (
+	StateBuilding = iota
+	StateRunning
+	StateWaiting
+	StateSucceeded // Successfully finished waiting on all commands
+	StateFailed    // Failed in or after Run().
 )
 
 func openForRead(filename string) (*os.File, error) {
@@ -91,6 +103,8 @@ func arraySet[T any](array []T, index int, value T) {
 
 // CommandChain is a chain of exec.Cmd.
 type CommandChain struct {
+	state int32
+
 	deferredError error
 	defaultStdout io.Writer
 	defaultStderr io.Writer
@@ -102,6 +116,10 @@ type CommandChain struct {
 	Commands     []*exec.Cmd
 	validators   []commandValidator
 	stderrReader []*BytesReader
+
+	tempFiles []*os.File
+
+	cleanupMu sync.Mutex
 }
 
 // ChainWaiter is a handle that can be wait()'ed on.
@@ -143,6 +161,52 @@ func WithStdInString(text string) *CommandChain {
 // WithStdInBytes creates a new CommandChain, with a given []byte as stdin.
 func WithStdInBytes(data []byte) *CommandChain {
 	return WithStdIn(bytes.NewReader(data))
+}
+
+func (c *CommandChain) ensureBuilding() {
+	if atomic.LoadInt32(&(c.state)) != StateBuilding {
+		panic("Invalid operation on CommandChain. It's already running.")
+	}
+}
+
+func (c *CommandChain) moveToRunning() {
+	if !atomic.CompareAndSwapInt32(&(c.state), StateBuilding, StateRunning) {
+		panic("Invalid operation Run() on CommandChain. It's already running.")
+	}
+}
+
+func (c *CommandChain) moveToWaiting() {
+	if !atomic.CompareAndSwapInt32(&(c.state), StateRunning, StateWaiting) {
+		panic("Invalid operation Wait() on CommandChain. It's not running.")
+	}
+}
+
+func (c *CommandChain) moveToSucceeded() {
+	if !atomic.CompareAndSwapInt32(&(c.state), StateWaiting, StateSucceeded) {
+		panic("Invalid operation Wait() on CommandChain. It's not running.")
+	}
+	c.cleanUp()
+}
+
+func (c *CommandChain) moveToFailed() {
+	atomic.StoreInt32(&(c.state), StateFailed)
+	c.cleanUp()
+}
+
+func (c *CommandChain) cleanUp() {
+	c.cleanupMu.Lock()
+	defer c.cleanupMu.Unlock()
+
+	for _, f := range c.tempFiles {
+		_ = f.Close()
+		_ = os.Remove(f.Name())
+	}
+}
+
+func (c *CommandChain) ensureHasCommand() {
+	if len(c.Commands) == 0 {
+		panic("No command is set yet.")
+	}
 }
 
 func (c *CommandChain) getDefaultStdout() io.Writer {
@@ -192,14 +256,13 @@ func (c *CommandChain) setDeferredError(err error) *CommandChain {
 }
 
 func (c *CommandChain) lastCommand() *exec.Cmd {
-	if len(c.Commands) == 0 {
-		panic("No command is set yet.")
-	}
+	c.ensureHasCommand()
 	return c.Commands[len(c.Commands)-1]
 }
 
 // Command adds a new command to a CommandChain.
 func (c *CommandChain) Command(name string, args ...string) *CommandChain {
+	c.ensureBuilding()
 	common.Debugf("Command: %s", name)
 
 	cmd := exec.Command(name, args...)
@@ -228,6 +291,7 @@ func (c *CommandChain) Command(name string, args ...string) *CommandChain {
 
 // CommandWithEnv adds a new command to a CommandChain with environmental variables.
 func (c *CommandChain) CommandWithEnv(env map[string]string, name string, args ...string) *CommandChain {
+	c.ensureBuilding()
 	e := make([]string, len(env))
 
 	i := 0
@@ -246,6 +310,7 @@ func (c *CommandChain) setValidator(validator commandValidator) {
 
 // AllowAnyStatus will allow the previous command to return any exit status code.
 func (c *CommandChain) AllowAnyStatus(actualStatus *int) *CommandChain {
+	c.ensureBuilding()
 	c.setValidator(func(cmd *exec.Cmd, waitError error) error {
 		status := extractStatusCode(waitError)
 		if status < 0 {
@@ -262,6 +327,7 @@ func (c *CommandChain) AllowAnyStatus(actualStatus *int) *CommandChain {
 // AllowStatus will allow the previous command to return any of specified exit status codes.
 // At least one status code must be provided.
 func (c *CommandChain) AllowStatus(actualStatus *int, allowed ...int) *CommandChain {
+	c.ensureBuilding()
 	if len(allowed) == 0 {
 		panic("AllowStatus expects 1 or more allowed status codes.")
 	}
@@ -285,30 +351,35 @@ func (c *CommandChain) AllowStatus(actualStatus *int, allowed ...int) *CommandCh
 
 // SetDefaultOut Set the default stdout to the subsequent commands.
 func (c *CommandChain) SetDefaultOut(writer io.Writer) *CommandChain {
+	c.ensureBuilding()
 	c.defaultStdout = writer
 	return c
 }
 
 // SetDefaultErr Set the default stderr to the subsequent commands.
 func (c *CommandChain) SetDefaultErr(writer io.Writer) *CommandChain {
+	c.ensureBuilding()
 	c.defaultStderr = writer
 	return c
 }
 
 // SetStdout sets a writer to the stdout of the last command.
 func (c *CommandChain) SetStdout(writer io.Writer) *CommandChain {
+	c.ensureBuilding()
 	ensureNilAndSet(&c.lastCommand().Stdout, writer, "Stdout already set to command %s", c.getCommandDescription(-1))
 	return c
 }
 
 // SetStderr sets a writer to the stderr of the last command.
 func (c *CommandChain) SetStderr(writer io.Writer) *CommandChain {
+	c.ensureBuilding()
 	ensureNilAndSet(&c.lastCommand().Stderr, writer, "Stderr already set to command %s", c.getCommandDescription(-1))
 	return c
 }
 
 // ErrToOut redirects stderr of the last command to stdout
 func (c *CommandChain) ErrToOut() *CommandChain {
+	c.ensureBuilding()
 	if c.prevErrToOut {
 		panic(fmt.Sprintf("ErrToOut has already been called on command %s", c.getCommandDescription(-1)))
 	}
@@ -318,6 +389,7 @@ func (c *CommandChain) ErrToOut() *CommandChain {
 
 // SetStdoutFile sets a file to the stdout of the last command.
 func (c *CommandChain) SetStdoutFile(filename string) *CommandChain {
+	c.ensureBuilding()
 	f, err := openForWrite(filename)
 	if err != nil {
 		c.SetStdout(io.Writer(f))
@@ -328,6 +400,7 @@ func (c *CommandChain) SetStdoutFile(filename string) *CommandChain {
 
 // SetStderrFile sets a file to the stderr of the last command.
 func (c *CommandChain) SetStderrFile(filename string) *CommandChain {
+	c.ensureBuilding()
 	f, err := openForWrite(filename)
 	if err != nil {
 		c.SetStderr(io.Writer(f))
@@ -339,6 +412,7 @@ func (c *CommandChain) SetStderrFile(filename string) *CommandChain {
 // getStdoutPipe gets a pipe from stdout of the last command.
 // This should only be used internally.
 func (c *CommandChain) getStdoutPipe(reader **io.ReadCloser) *CommandChain {
+	c.ensureBuilding()
 	cmd := c.lastCommand()
 	p, err := cmd.StdoutPipe()
 	if err != nil {
@@ -351,11 +425,14 @@ func (c *CommandChain) getStdoutPipe(reader **io.ReadCloser) *CommandChain {
 
 // SaveStderr saves stderr to a tempfile and sends it to con when all the commands are done.
 func (c *CommandChain) SaveStderr(r *BytesReader) *CommandChain {
+	c.ensureBuilding()
 	temp, err := os.CreateTemp(os.TempDir(), "stderr*.dat")
 	if err != nil {
 		c.setDeferredError(fmt.Errorf("CreateTemp() failed on %s: %w", c.getCommandDescription(-1), err))
 		return c
 	}
+	c.tempFiles = append(c.tempFiles, temp)
+
 	c.SetStderr(temp)
 	arraySet(c.stderrReader, -1, r)
 	return c
@@ -368,6 +445,8 @@ func (c *CommandChain) setNextStdin(rd io.ReadCloser) {
 // Pipe prepares a pipe from stdout of the last command to the next command.
 // It should be followed by Command()
 func (c *CommandChain) Pipe() *CommandChain {
+	c.ensureBuilding()
+
 	var rd *io.ReadCloser
 	c.getStdoutPipe(&rd)
 	c.setNextStdin(*rd)
@@ -378,9 +457,7 @@ func (c *CommandChain) validateBeforeRun() error {
 	if c.deferredError != nil {
 		return c.deferredError
 	}
-	if len(c.Commands) == 0 {
-		panic("Must have at least 1 command")
-	}
+	c.ensureHasCommand()
 	if c.nextStdin != nil {
 		panic("Expecting next command to consume stdin")
 	}
@@ -389,8 +466,11 @@ func (c *CommandChain) validateBeforeRun() error {
 
 // Run starts a CommandChain.
 func (c *CommandChain) Run() (*ChainWaiter, error) {
+	c.moveToRunning()
+
 	err := c.validateBeforeRun()
 	if err != nil {
+		c.moveToFailed()
 		return nil, err
 	}
 	c.fixUpLastCommand()
@@ -398,6 +478,7 @@ func (c *CommandChain) Run() (*ChainWaiter, error) {
 	for i, cmd := range c.Commands {
 		err := cmd.Start()
 		if err != nil {
+			c.moveToFailed()
 			return nil, fmt.Errorf("unable to execute command \"%s\" (command #%d): %s", cmd.Path, i+1, err.Error())
 		}
 	}
@@ -515,6 +596,7 @@ func (c *CommandChain) MustRunAndStreamBytesBufSize(con BytesConsumer, bufSize i
 
 // Wait wait() on all commands in a CommandChain.
 func (cw *ChainWaiter) Wait() (*ChainResult, error) {
+	cw.Chain.moveToWaiting()
 
 	var firstError error
 	for i, cmd := range cw.Chain.Commands {
@@ -545,8 +627,10 @@ func (cw *ChainWaiter) Wait() (*ChainResult, error) {
 		}
 	}
 	if firstError != nil {
+		cw.Chain.moveToFailed()
 		return nil, firstError
 	}
+	cw.Chain.moveToSucceeded()
 
 	return &ChainResult{Chain: cw.Chain}, nil
 }
