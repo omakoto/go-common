@@ -11,9 +11,12 @@ import (
 func mustMakeTempFile(content string) string {
 	wr, err := os.CreateTemp("/tmp", "temp*.txt")
 	common.Check(err, "openForWrite failed")
-	defer wr.Close()
 
-	wr.Write([]byte(content))
+	_, err = wr.Write([]byte(content))
+	common.Check(err, "Write failed")
+
+	err = wr.Close()
+	common.Check(err, "Close failed")
 
 	return wr.Name()
 }
@@ -130,8 +133,13 @@ func TestBasic(t *testing.T) {
 	{
 		temp1 := mustMakeTempFile("abc\ndef\n")
 		temp2 := mustMakeTempFile("")
-		WithStdInFile(temp1).Command("cat", "-An").SetStdoutFile(temp2).MustRunAndWait()
+		WithStdInFile(temp1).Command("cat", "-An").SetStdoutFile(temp2).SetStdoutFile(temp2).MustRunAndWait()
 		assert.Equal(t, "     1\tabc$\n     2\tdef$\n", mustReadAllFileAsString(temp2))
+	}
+
+	{
+		out := WithStdInBytes([]byte("abc\ndef\n")).Command("cat", "-An").MustRunAndGetString()
+		assert.Equal(t, "     1\tabc$\n     2\tdef$\n", out)
 	}
 
 	{
@@ -194,6 +202,15 @@ func TestBasic(t *testing.T) {
 		assert.Equal(t, "out\n", mustReadAllAsString(*rd))
 
 		cw.MustWait()
+	}
+
+	{
+		env := map[string]string{
+			"ARG1": "arg1",
+			"ARG2": "arg2",
+		}
+		out := New().CommandWithEnv(env, "bash", "-c", "echo $ARG1 $ARG2").MustRunAndGetString()
+		assert.Equal(t, "arg1 arg2\n", out)
 	}
 
 	// This doesn't work. Not sure why.

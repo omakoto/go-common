@@ -75,7 +75,7 @@ func extractStatusCode(waitError error) int {
 	return -1
 }
 
-func standardValidator(cmd *exec.Cmd, waitError error) error {
+func standardValidator(_ *exec.Cmd, waitError error) error {
 	return waitError
 }
 
@@ -292,8 +292,10 @@ func (c *CommandChain) Command(name string, args ...string) *CommandChain {
 // CommandWithEnv adds a new command to a CommandChain with environmental variables.
 func (c *CommandChain) CommandWithEnv(env map[string]string, name string, args ...string) *CommandChain {
 	c.ensureBuilding()
-	e := make([]string, len(env))
 
+	c.Command(name, args...)
+
+	e := make([]string, len(env))
 	i := 0
 	for name, value := range env {
 		e[i] = name + "=" + value
@@ -391,7 +393,7 @@ func (c *CommandChain) ErrToOut() *CommandChain {
 func (c *CommandChain) SetStdoutFile(filename string) *CommandChain {
 	c.ensureBuilding()
 	f, err := openForWrite(filename)
-	if err != nil {
+	if err == nil {
 		c.SetStdout(io.Writer(f))
 	}
 	c.setDeferredError(err)
@@ -402,7 +404,7 @@ func (c *CommandChain) SetStdoutFile(filename string) *CommandChain {
 func (c *CommandChain) SetStderrFile(filename string) *CommandChain {
 	c.ensureBuilding()
 	f, err := openForWrite(filename)
-	if err != nil {
+	if err == nil {
 		c.SetStderr(io.Writer(f))
 	}
 	c.setDeferredError(err)
