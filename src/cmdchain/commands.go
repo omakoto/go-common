@@ -30,7 +30,7 @@ func openForRead(filename string) (*os.File, error) {
 }
 
 func openForWrite(filename string) (*os.File, error) {
-	return os.OpenFile(filename, os.O_WRONLY|os.O_CREATE, 0)
+	return os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0)
 }
 
 // MustOpenForRead opens a file for reading.
