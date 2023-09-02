@@ -120,6 +120,13 @@ func TestBasic(t *testing.T) {
 	}
 
 	{
+		i := New().Command("bash", "-c", "echo out; echo err 1>&2").ErrToOut().MustRunAndGetStringsIter()
+		assert.Equal(t, "out", *i())
+		assert.Equal(t, "err", *i())
+		assert.Equal(t, (*string)(nil), i())
+	}
+
+	{
 		temp := mustMakeTempFile("abc\ndef\n")
 		out := WithStdInFile(temp).Command("cat", "-An").MustRunAndGetString()
 		assert.Equal(t, "     1\tabc$\n     2\tdef$\n", out)

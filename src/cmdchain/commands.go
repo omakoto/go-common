@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/omakoto/go-common/src/common"
 	"github.com/omakoto/go-common/src/textio"
+	"github.com/omakoto/go-common/src/utils"
 	"io"
 	"os"
 	"os/exec"
@@ -548,6 +549,10 @@ func (c *CommandChain) MustRunAndGetString() string {
 // and it also calls MustWait().
 func (c *CommandChain) MustRunAndGetStrings() []string {
 	return strings.Split(textio.StringChomp(c.MustRunAndGetString()), "\n")
+}
+
+func (c *CommandChain) MustRunAndGetStringsIter() func() *string {
+	return utils.Iter(c.MustRunAndGetStrings())
 }
 
 // MustRunAndStreamStrings starts a CommandChain, read stdout of the last command line by line
