@@ -30,20 +30,24 @@ func GenWrapper() {
 	if _, file, _, ok := runtime.Caller(1); !ok {
 		panic("runtime.Caller failed")
 	} else {
-		if script, ok := strings.CutSuffix(file, ".go"); !ok {
-			panic("Unexpected filename extension in " + file)
-		} else {
-			common.Verbosef("Creating %s ...", script)
+		Generate(file)
+	}
+}
 
-			f, err := os.OpenFile(script, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755)
-			common.CheckPanicf(err, "OpenFile failed: %s", err)
-			_, err = f.WriteString(scriptContent)
-			common.CheckPanicf(err, "WriteString: %s", err)
-			f.Close()
+func Generate(filename string) {
+	if script, ok := strings.CutSuffix(filename, ".go"); !ok {
+		panic("Unexpected filename extension in " + filename)
+	} else {
+		common.Verbosef("Creating %s ...", script)
 
-			common.Verbosef("Running %s ...", script)
-			err = syscall.Exec(script, os.Args[1:], os.Environ())
-			panic(fmt.Sprintf("Exec failed: %v", err))
-		}
+		f, err := os.OpenFile(script, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755)
+		common.CheckPanicf(err, "OpenFile failed: %s", err)
+		_, err = f.WriteString(scriptContent)
+		common.CheckPanicf(err, "WriteString: %s", err)
+		f.Close()
+
+		common.Verbosef("Running %s ...", script)
+		err = syscall.Exec(script, os.Args[1:], os.Environ())
+		panic(fmt.Sprintf("Exec failed: %v", err))
 	}
 }
