@@ -127,6 +127,45 @@ func TestBasic(t *testing.T) {
 	}
 
 	{
+		i := New().Command("bash", "-c", "echo out; echo err 1>&2").ErrToOut().MustRunAndStreamStringsIter()
+		s, ok := i.Next()
+		assert.Equal(t, "out", *s)
+		assert.True(t, ok)
+
+		s, ok = i.Next()
+		assert.Equal(t, "err", *s)
+		assert.True(t, ok)
+
+		s, ok = i.Next()
+		assert.Equal(t, (*string)(nil), s)
+		assert.False(t, ok)
+	}
+
+	{
+		i := New().Command("bash", "-c", "echo out; echo err 1>&2").ErrToOut().MustRunAndStreamBytesIter()
+		s, ok := i.Next()
+		assert.Equal(t, []byte("out"), *s)
+		assert.True(t, ok)
+
+		s, ok = i.Next()
+		assert.Equal(t, []byte("err"), *s)
+		assert.True(t, ok)
+
+		s, ok = i.Next()
+		assert.Equal(t, (*[]byte)(nil), s)
+		assert.False(t, ok)
+	}
+
+	{
+		assert.PanicsWithValue(t, "failed to wait on command /usr/bin/bash: exit status 9", func() {
+			i := New().Command("bash", "-c", "exit 9").MustRunAndStreamBytesIter()
+			s, ok := i.Next()
+			assert.Equal(t, (*[]byte)(nil), s)
+			assert.False(t, ok)
+		}, "Expected panic")
+	}
+
+	{
 		temp := mustMakeTempFile("abc\ndef\n")
 		out := WithStdInFile(temp).Command("cat", "-An").MustRunAndGetString()
 		assert.Equal(t, "     1\tabc$\n     2\tdef$\n", out)
@@ -232,7 +271,7 @@ func TestBasic(t *testing.T) {
 	//			end = time.Now()
 	//		}
 	//	}
-	//	New().Command("bash", "-c", "stdbuf -oL /usr/bin/echo out1; sleep 0.5; stdbuf -oL /usr/bin/echo out2").MustRunAndStreamStringsBufSize(con, 1)
+	//	New().Command("bash", "-c", "stdbuf -oL /usr/bin/echo out1; sleep 0.5; stdbuf -oL /usr/bin/echo out2").mustRunAndStreamStringsBufSize(con, 1)
 	//
 	//	assert.LessOrEqualf(t, time.Duration(500_000_000), end.Sub(start), "Didn't received the strings 500ms apart. (start=%s, end=%s)", start, end)
 	//}

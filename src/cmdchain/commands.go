@@ -37,14 +37,14 @@ func openForWrite(filename string) (*os.File, error) {
 // MustOpenForRead opens a file for reading.
 func MustOpenForRead(filename string) *os.File {
 	ret, err := openForRead(filename)
-	common.Check(err, fmt.Sprintf("Unable to open file %s for reading", filename))
+	common.CheckPanicf(err, "Unable to open file %s for reading", filename)
 	return ret
 }
 
 // MustOpenForWrite opens (or creates) a file for writing.
 func MustOpenForWrite(filename string) *os.File {
 	ret, err := openForWrite(filename)
-	common.Check(err, fmt.Sprintf("Unable to open file %s for writing", filename))
+	common.Checkf(err, "Unable to open file %s for writing", filename)
 	return ret
 }
 
@@ -491,7 +491,7 @@ func (c *CommandChain) Run() (*ChainWaiter, error) {
 // MustRun starts a CommandChain.
 func (c *CommandChain) MustRun() *ChainWaiter {
 	cw, err := c.Run()
-	common.Check(err, "Unable to execute command(s)")
+	common.CheckPanic(err, "Unable to execute command(s)")
 	return cw
 }
 
@@ -503,7 +503,7 @@ func (c *CommandChain) MustRunAndWait() *ChainResult {
 // MustRunAndGetReader starts a CommandChain and get stdout of the last command as an io.Reader.
 func (c *CommandChain) MustRunAndGetReader() (io.Reader, *ChainWaiter) {
 	err := c.validateBeforeRun()
-	common.Check(err, "Unable to execute command(s)")
+	common.CheckPanic(err, "Unable to execute command(s)")
 
 	var rd *io.ReadCloser
 	c.getStdoutPipe(&rd)
@@ -517,11 +517,11 @@ const defaultBufSize = 4096
 
 // MustRunAndGetBufferedReader starts a CommandChain and get stdout of the last command as an bufio.Reader.
 func (c *CommandChain) MustRunAndGetBufferedReader() (*bufio.Reader, *ChainWaiter) {
-	return c.MustRunAndGetBufferedReaderBufSize(defaultBufSize)
+	return c.mustRunAndGetBufferedReaderBufSize(defaultBufSize)
 }
 
-// MustRunAndGetBufferedReaderBufSize starts a CommandChain and get stdout of the last command as an bufio.Reader.
-func (c *CommandChain) MustRunAndGetBufferedReaderBufSize(bufSize int) (*bufio.Reader, *ChainWaiter) {
+// mustRunAndGetBufferedReaderBufSize starts a CommandChain and get stdout of the last command as an bufio.Reader.
+func (c *CommandChain) mustRunAndGetBufferedReaderBufSize(bufSize int) (*bufio.Reader, *ChainWaiter) {
 	rd, cw := c.MustRunAndGetReader()
 	return bufio.NewReaderSize(rd, bufSize), cw
 }
@@ -532,7 +532,7 @@ func (c *CommandChain) MustRunAndGetBytes() []byte {
 	rd, waiter := c.MustRunAndGetReader()
 
 	data, err := io.ReadAll(rd)
-	common.Check(err, "Error while reading from commands")
+	common.CheckPanic(err, "Error while reading from commands")
 
 	waiter.MustWait()
 
@@ -558,13 +558,13 @@ func (c *CommandChain) MustRunAndGetStringsIter() func() *string {
 // MustRunAndStreamStrings starts a CommandChain, read stdout of the last command line by line
 // and feed them to con.
 func (c *CommandChain) MustRunAndStreamStrings(con StringConsumer) {
-	c.MustRunAndStreamStringsBufSize(con, defaultBufSize)
+	c.mustRunAndStreamStringsBufSize(con, defaultBufSize)
 }
 
-// MustRunAndStreamStringsBufSize starts a CommandChain, read stdout of the last command line by line
+// mustRunAndStreamStringsBufSize starts a CommandChain, read stdout of the last command line by line
 // and feed them to con, using bufSize for buffered reading.
-func (c *CommandChain) MustRunAndStreamStringsBufSize(con StringConsumer, bufSize int) {
-	rd, cw := c.MustRunAndGetBufferedReaderBufSize(bufSize)
+func (c *CommandChain) mustRunAndStreamStringsBufSize(con StringConsumer, bufSize int) {
+	rd, cw := c.mustRunAndGetBufferedReaderBufSize(bufSize)
 	defer cw.MustWait()
 	for {
 		line, err := rd.ReadString('\n')
@@ -574,6 +574,7 @@ func (c *CommandChain) MustRunAndStreamStringsBufSize(con StringConsumer, bufSiz
 		if err != nil {
 			panic(fmt.Sprintf("ReadString failed. %s", err))
 		}
+		line = textio.StringChomp(line)
 		con(line)
 	}
 }
@@ -581,13 +582,13 @@ func (c *CommandChain) MustRunAndStreamStringsBufSize(con StringConsumer, bufSiz
 // MustRunAndStreamBytes starts a CommandChain, read stdout of the last command line by line
 // and feed them to con.
 func (c *CommandChain) MustRunAndStreamBytes(con BytesConsumer) {
-	c.MustRunAndStreamBytesBufSize(con, defaultBufSize)
+	c.mustRunAndStreamBytesBufSize(con, defaultBufSize)
 }
 
-// MustRunAndStreamBytesBufSize starts a CommandChain, read stdout of the last command line by line
+// mustRunAndStreamBytesBufSize starts a CommandChain, read stdout of the last command line by line
 // and feed them to con, using bufSize for buffered reading.
-func (c *CommandChain) MustRunAndStreamBytesBufSize(con BytesConsumer, bufSize int) {
-	rd, cw := c.MustRunAndGetBufferedReaderBufSize(bufSize)
+func (c *CommandChain) mustRunAndStreamBytesBufSize(con BytesConsumer, bufSize int) {
+	rd, cw := c.mustRunAndGetBufferedReaderBufSize(bufSize)
 	defer cw.MustWait()
 	for {
 		line, err := rd.ReadBytes('\n')
@@ -597,8 +598,52 @@ func (c *CommandChain) MustRunAndStreamBytesBufSize(con BytesConsumer, bufSize i
 		if err != nil {
 			panic(fmt.Sprintf("ReadString failed. %s", err))
 		}
+		line = textio.Chomp(line)
 		con(line)
 	}
+}
+
+func (c *CommandChain) mustRunAndStreamBytesIterInner() (it func() (*[]byte, bool), cl func()) {
+	rd, cw := c.mustRunAndGetBufferedReaderBufSize(defaultBufSize)
+
+	it = func() (e *[]byte, ok bool) {
+		line, err := rd.ReadBytes('\n')
+		if err == io.EOF {
+			return nil, false
+		}
+		if err != nil {
+			panic(fmt.Sprintf("ReadString failed. %s", err))
+		}
+		line = textio.Chomp(line)
+		return &line, true
+	}
+	cl = func() {
+		cw.MustWait()
+	}
+	return
+}
+
+func (c *CommandChain) MustRunAndStreamBytesIter() *utils.Iterator[[]byte] {
+	it, cl := c.mustRunAndStreamBytesIterInner()
+
+	return utils.NewIterable(it, cl)
+}
+
+func (c *CommandChain) MustRunAndStreamStringsIter() *utils.Iterator[string] {
+	it, cl := c.mustRunAndStreamBytesIterInner()
+
+	return utils.NewIterable(
+		func() (*string, bool) {
+			data, ok := it()
+			if ok {
+				s := string(*data)
+				return &s, ok
+			} else {
+				return nil, false
+			}
+		},
+		cl,
+	)
 }
 
 // Wait wait() on all commands in a CommandChain.
@@ -645,6 +690,6 @@ func (cw *ChainWaiter) Wait() (*ChainResult, error) {
 // MustWait wait() on all commands in a CommandChain.
 func (cw *ChainWaiter) MustWait() *ChainResult {
 	cr, err := cw.Wait()
-	common.Checke(err)
+	common.CheckPanice(err)
 	return cr
 }
