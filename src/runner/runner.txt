@@ -1,0 +1,5 @@
+#!/bin/sh
+
+export {ENV}=1
+
+exec go run "$0.go" "${@}"

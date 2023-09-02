@@ -1,6 +1,7 @@
 package runner
 
 import (
+	_ "embed"
 	"fmt"
 	"github.com/omakoto/go-common/src/common"
 	"os"
@@ -11,12 +12,12 @@ import (
 
 const envSkipGen = "GO_RUNNER_SKIP_GEN"
 
-const scriptContent = `#!/bin/sh
+//go:embed runner.txt
+var scriptContent string
 
-export ` + envSkipGen + `=1
-
-exec go run "$0.go" "${@}"
-`
+func init() {
+	scriptContent = strings.Replace(scriptContent, "{ENV}", envSkipGen, -1)
+}
 
 // GenWrapper is supposed to be called by a go program executed by `go run`, and creates
 // a wrapper shell script for the program.
@@ -35,9 +36,9 @@ func GenWrapper() {
 			common.Verbosef("Creating %s ...", script)
 
 			f, err := os.OpenFile(script, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755)
-			common.Checkf(err, "OpenFile failed: %s", err)
+			common.CheckPanicf(err, "OpenFile failed: %s", err)
 			_, err = f.WriteString(scriptContent)
-			common.Checkf(err, "WriteString: %s", err)
+			common.CheckPanicf(err, "WriteString: %s", err)
 			f.Close()
 
 			common.Verbosef("Running %s ...", script)
