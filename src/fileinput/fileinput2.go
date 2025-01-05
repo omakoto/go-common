@@ -10,22 +10,30 @@ import (
 	"github.com/otiai10/copy"
 )
 
+// Options is options for [FileInput].
 type Options struct {
+	// If true, STDOUT will be redirected to the input file. For inline replacements.
 	InlineReplace bool
-	Files         []string
-	BackupSuffix  string
+
+	// Input files. Defaults to [os.Args].
+	Files []string
+
+	// Backup suffix. Defaults to ".bak".
+	BackupSuffix string
 }
 
+// FileInfo contains information about the current line.
 type FileInfo struct {
-	// filename of the current input file.
+	// Filename of the current input file.
 	Filename string
 
-	// line number within the file. (0 based)
+	// Line number within the file. (0 based)
 	Line int
 }
 
 type FileInputSeq func(yield func(text, file string, line int) bool)
 
+// FileInput is similar to Python's fileinput.
 func FileInput(options_ ...Options) iter.Seq2[string, FileInfo] {
 	options := Options{}
 	if len(options_) > 0 {
@@ -54,7 +62,7 @@ func FileInput(options_ ...Options) iter.Seq2[string, FileInfo] {
 			return in, nil, nil
 		} else {
 			backup := file + suffix
-			err := copy.Copy(file, backup)
+			err := copy.Copy(file, backup, copy.Options{PermissionControl: copy.PerservePermission})
 			if err != nil {
 				return nil, nil, fmt.Errorf("unable to create backup file '%s' for '%s': %w", backup, file, err)
 			}
