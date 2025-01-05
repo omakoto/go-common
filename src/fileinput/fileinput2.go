@@ -45,32 +45,39 @@ func FileInput(options_ ...Options) iter.Seq2[string, FileInfo] {
 		}
 	}
 
-	opener := func(file string) (*os.File, error) {
+	opener := func(file string) (*os.File, *os.File, error) {
 		if !replace {
 			in, err := os.Open(file)
 			if err != nil {
-				return nil, fmt.Errorf("unable to open file '%s': %w", file, err)
+				return nil, nil, fmt.Errorf("unable to open file '%s': %w", file, err)
 			}
-			return in, nil
+			return in, nil, nil
 		} else {
 			backup := file + suffix
 			err := copy.Copy(file, backup)
 			if err != nil {
-				return nil, fmt.Errorf("unable to create backup file '%s' for '%s': %w", backup, file, err)
+				return nil, nil, fmt.Errorf("unable to create backup file '%s' for '%s': %w", backup, file, err)
 			}
-			io, err := os.OpenFile(file, os.O_RDWR, 0)
+			in, err := os.Open(backup)
 			if err != nil {
-				return nil, fmt.Errorf("unable to open file '%s': %w", file, err)
+				return nil, nil, fmt.Errorf("unable to open file '%s': %w", file, err)
 			}
-			os.Stdout = io
-			return io, nil
+			out, err := os.OpenFile(file, os.O_WRONLY|os.O_TRUNC, 0)
+			if err != nil {
+				return nil, nil, fmt.Errorf("unable to open file '%s': %w", file, err)
+			}
+			os.Stdout = out
+			return in, out, nil
 		}
 	}
 
 	doSingle := func(file string, yield func(text string, info FileInfo) bool) {
-		in, err := opener(file)
+		in, out, err := opener(file)
 		common.Checke(err)
 		defer in.Close()
+		if out != nil {
+			defer out.Close()
+		}
 
 		sc := bufio.NewScanner(in)
 
