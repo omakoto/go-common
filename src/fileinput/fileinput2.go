@@ -2,15 +2,18 @@ package fileinput
 
 import (
 	"bufio"
+	"fmt"
 	"iter"
 	"os"
 
 	"github.com/omakoto/go-common/src/common"
+	"github.com/otiai10/copy"
 )
 
 type Options struct {
 	InlineReplace bool
 	Files         []string
+	BackupSuffix  string
 }
 
 type FileInfo struct {
@@ -23,12 +26,17 @@ type FileInfo struct {
 
 type FileInputSeq func(yield func(text, file string, line int) bool)
 
-func FileInput() iter.Seq2[string, FileInfo] {
-	return FileInputOption(Options{})
-}
+func FileInput(options_ ...Options) iter.Seq2[string, FileInfo] {
+	options := Options{}
+	if len(options_) > 0 {
+		options = options_[0]
+	}
 
-func FileInputOption(options Options) iter.Seq2[string, FileInfo] {
-	// inline := options.InlineReplace
+	replace := options.InlineReplace
+	suffix := options.BackupSuffix
+	if suffix == "" {
+		suffix = ".bak"
+	}
 	files := options.Files
 	if len(files) == 0 {
 		files = os.Args[1:]
@@ -37,22 +45,48 @@ func FileInputOption(options Options) iter.Seq2[string, FileInfo] {
 		}
 	}
 
+	opener := func(file string) (*os.File, error) {
+		if !replace {
+			in, err := os.Open(file)
+			if err != nil {
+				return nil, fmt.Errorf("unable to open file '%s': %w", file, err)
+			}
+			return in, nil
+		} else {
+			backup := file + suffix
+			err := copy.Copy(file, backup)
+			if err != nil {
+				return nil, fmt.Errorf("unable to create backup file '%s' for '%s': %w", backup, file, err)
+			}
+			io, err := os.OpenFile(file, os.O_RDWR, 0)
+			if err != nil {
+				return nil, fmt.Errorf("unable to open file '%s': %w", file, err)
+			}
+			os.Stdout = io
+			return io, nil
+		}
+	}
+
+	doSingle := func(file string, yield func(text string, info FileInfo) bool) {
+		in, err := opener(file)
+		common.Checke(err)
+		defer in.Close()
+
+		sc := bufio.NewScanner(in)
+
+		fi := FileInfo{file, 0}
+
+		for sc.Scan() {
+			if !yield(sc.Text(), fi) {
+				return
+			}
+			fi.Line++
+		}
+	}
+
 	return func(yield func(text string, info FileInfo) bool) {
 		for _, file := range files {
-			in, err := os.Open(file)
-			common.Checkf(err, "Unable to open file '%s'", file)
-			defer in.Close()
-
-			sc := bufio.NewScanner(in)
-
-			fi := FileInfo{file, 0}
-
-			for sc.Scan() {
-				if !yield(sc.Text(), fi) {
-					return
-				}
-				fi.Line++
-			}
+			doSingle(file, yield)
 		}
 	}
 }
