@@ -2,11 +2,13 @@ package common
 
 import (
 	"fmt"
-	"github.com/davecgh/go-spew/spew"
 	"os"
 	"path/filepath"
+	"runtime"
 	"runtime/debug"
 	"strings"
+
+	"github.com/davecgh/go-spew/spew"
 )
 
 var (
@@ -194,4 +196,12 @@ func Dump(prefix string, object interface{}) {
 		return
 	}
 	Debugf("%s%s", prefix, spew.Sdump(object))
+}
+
+func GetSourceInfo() (string, int) {
+	_, fileName, fileLine, ok := runtime.Caller(1)
+	if ok {
+		return fileName, fileLine
+	}
+	return "", -1
 }
