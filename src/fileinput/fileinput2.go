@@ -75,6 +75,7 @@ func FileInput(options_ ...Options) iter.Seq2[string, FileInfo] {
 				return nil, nil, fmt.Errorf("unable to open file '%s': %w", file, err)
 			}
 			os.Stdout = out
+
 			return in, out, nil
 		}
 	}
