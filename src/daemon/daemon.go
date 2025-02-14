@@ -20,6 +20,7 @@ import (
 
 const DaemonMarker = "__DAEMON_MARKER__"
 
+// Options for Start and StartWithOptions.
 type Options struct {
 	Cwd         string
 	PidFilename string
@@ -29,22 +30,29 @@ type Options struct {
 	Stderr io.Writer
 }
 
-func (o *Options) getPidFile() string {
-	pidFilename := o.PidFilename
-	if pidFilename == "" {
-		pidFilename = filepath.Base(os.Args[0]) + "_pid.txt"
-	}
-	return must.Must2(os.UserHomeDir()) + string(filepath.Separator) + "." + pidFilename
-}
+type DaemonOptions = Options // For backward compatibility
 
-func Start() bool {
-	return StartWithOptions(Options{
+func GetDefaultOptions() Options {
+	return Options{
 		Stdin:  os.Stdin,
 		Stdout: os.Stdout,
 		Stderr: os.Stderr,
-	})
+	}
 }
 
+func (o *Options) getPidFile() string {
+	if o.PidFilename != "" {
+		return o.PidFilename
+	}
+	return must.Must2(os.UserHomeDir()) + "/." + filepath.Base(os.Args[0]) + "_pid.txt"
+}
+
+// Start starts a new daemon with default options.
+func Start() bool {
+	return StartWithOptions(GetDefaultOptions())
+}
+
+// StartWithOptions starts a new daemon.
 func StartWithOptions(options Options) bool {
 	if options.Cwd == "" {
 		options.Cwd = must.Must2(os.UserHomeDir())
@@ -58,7 +66,13 @@ func StartWithOptions(options Options) bool {
 	}
 }
 
-func IsRunning(options Options) bool {
+// IsRunning returns whether the daemon is running or not.
+func IsRunning() bool {
+	return isRunning(getPid(GetDefaultOptions()))
+}
+
+// IsRunningWithOptions returns whether the daemon is running or not.
+func IsRunningWithOptions(options Options) bool {
 	return isRunning(getPid(options))
 }
 
@@ -92,10 +106,6 @@ func doChild(options Options) {
 	signal.Ignore(syscall.SIGHUP)
 
 	fmt.Printf("Daemon started with pid %d\n", os.Getpid())
-}
-
-func Stop() bool {
-	return StopWithOptions(Options{})
 }
 
 func getPid(options Options) int {
@@ -141,6 +151,12 @@ func isRunning(pid int) bool {
 	return fields[1] == "("+myName+")"
 }
 
+// Stop stops the daemon if it's running. Returns false if it's running but failed to stop it.
+func Stop() bool {
+	return StopWithOptions(GetDefaultOptions())
+}
+
+// StopWithOptions stops the daemon if it's running. Returns false if it's running but failed to stop it.
 func StopWithOptions(options Options) bool {
 	pid := getPid(options)
 	if pid < 0 {
