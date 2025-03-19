@@ -78,5 +78,5 @@ func generate(mainSource string, options Options) {
 	_ = must.Must2(f.WriteString(script))
 	must.Must(f.Close())
 
-	must.Must(syscall.Exec(wrapperResolvedPath, os.Args[1:], os.Environ()))
+	must.Must(syscall.Exec(wrapperResolvedPath, os.Args, os.Environ()))
 }

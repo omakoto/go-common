@@ -1,5 +1,12 @@
-#!/bin/sh
+#!/bin/bash
 
 export {ENV}=1
 
-exec go run "${0%/*}"/{SOURCE} "${@}"
+script="${0%/*}/{SOURCE}"
+
+if (( $RUNNER_SHOW_MAIN )) ; then
+    echo "$(readlink -f "$script")"
+    exit 0
+fi
+
+exec go run "$script" "${@}"
