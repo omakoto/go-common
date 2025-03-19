@@ -1,8 +1,10 @@
 #!/bin/bash
 
+set -e
 export {ENV}=1
 
-script="${0%/*}/{SOURCE}"
+cd "${0%/*}"
+script="./{SOURCE}"
 
 if (( $RUNNER_SHOW_MAIN )) ; then
     echo "$(readlink -f "$script")"
